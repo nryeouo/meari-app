@@ -194,6 +194,32 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.innerHTML = generateSongSelectedHTML();
     }
 
+    function playChord(pitch, key) {
+        if (!key) return;
+    
+        const noteMap = {
+            "C": 1, "C#": 2, "Db": 2, "D": 3, "D#": 4, "Eb": 4,
+            "E": 5, "F": 6, "F#": 7, "Gb": 7, "G": 8,
+            "G#": 9, "Ab": 9, "A": 10, "A#": 11, "Bb": 11, "B": 12
+        };
+    
+        // メジャー/マイナー判定
+        const isMinor = key.endsWith("m");
+        const baseNote = key.replace("m", "");
+        let num = noteMap[baseNote];
+    
+        if (!num) return;
+    
+        let finalNote = num + pitch;
+        while (finalNote < 1) finalNote += 12;
+        while (finalNote > 12) finalNote -= 12;
+    
+        const fileNum = isMinor ? 20 + finalNote : finalNote;
+        const chordFile = `chord/c_${fileNum.toString().padStart(2, "0")}.mp3`;
+    
+        playSound(chordFile);
+    }
+
     function startConversion() {
         fetch("/convert", {
             method: "POST",
@@ -269,11 +295,11 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (event.key === "+" && pitch < 8) {
             pitch++;
             inputBox.innerHTML = generateSongSelectedHTML();
-            playSound("plus.mp3");
+            playChord(pitch, songInfo.songKey);
         } else if (event.key === "-" && pitch > -8) {
             pitch--;
             inputBox.innerHTML = generateSongSelectedHTML();
-            playSound("minus.mp3");
+            playChord(pitch, songInfo.songKey);
         } else if (event.key === "Enter" && inputNumber.length === 4) {
             startConversion();
             playSound("enter.mp3");
