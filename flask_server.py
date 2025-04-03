@@ -22,7 +22,11 @@ def dict_factory(cursor, row):
 
 @app.route("/")
 def serve_index():
-    return send_from_directory("static", "index.html")
+    return send_from_directory(app.static_folder, "index.html")
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, "favicon.ico")
 
 
 @app.route("/songs", methods=["GET"])
