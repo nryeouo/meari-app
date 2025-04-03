@@ -78,24 +78,35 @@ document.addEventListener("DOMContentLoaded", () => {
         let composer = "";
         let lyricStart = "";
         console.log(songInfo);
+
         duration = formatSeconds(songInfo.duration);
-        if (typeof songInfo.lyricist !== 'undefined' && songInfo.lyricist !== null) {
+
+        if (songInfo.lyricist) {
             lyricist = songInfo.lyricist;
-        };
-        if (typeof songInfo.composer !== 'undefined' && songInfo.composer !== null) {
+        }
+    
+        if (songInfo.composer) {
             composer = songInfo.composer;
-            if (lyricist == composer) {
-                remarks_array.push(`<span class='border'>작사,작곡</span> ${songInfo.lyricist}`)
+        }
+    
+        if (lyricist && composer) {
+            if (lyricist === composer) {
+                remarks_array.push(`<span class='border'>작사,작곡</span> ${lyricist}`);
             } else {
-                remarks_array.push(`<span class='border'>작사</span> ${songInfo.lyricist}`)
-                remarks_array.push(`<span class='border'>작곡</span> ${songInfo.composer}`)
+                remarks_array.push(`<span class='border'>작사</span> ${lyricist}`);
+                remarks_array.push(`<span class='border'>작곡</span> ${composer}`);
             }
-        };
-        if (typeof songInfo.songKey !== 'undefined' && songInfo.songKey !== null) {
+        } else if (lyricist) {
+            remarks_array.push(`<span class='border'>작사</span> ${lyricist}`);
+        } else if (composer) {
+            remarks_array.push(`<span class='border'>작곡</span> ${composer}`);
+        }
+
+        if (songInfo.songKey) {
             remarks_array.push(`<span class='border'>조성</span> ${songInfo.songKey}`)
         };
 
-        if (typeof songInfo.lyricStart !== 'undefined' && songInfo.lyricStart !== null) {
+        if (songInfo.lyricStart) {
             lyricStart = highlightGreatLeaders(songInfo.lyricStart)
         };
         if (lyricStart.length > 0) {
