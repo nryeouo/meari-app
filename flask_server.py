@@ -1,4 +1,4 @@
-from flask import Flask, abort, request, jsonify, send_from_directory, render_template
+from flask import Flask, abort, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import sqlite3
@@ -9,9 +9,6 @@ from config import base_dir, video_files_dir
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 CORS(app)
 
-# config.py を実機用に書き換える
-# base_dir = "/home/lubuntu/meari"
-# video_files_dir = "/home/lubuntu/meari"
 
 VIDEO_DIR = os.path.join(video_files_dir, "video")
 PROCESSED_DIR = os.path.join(video_files_dir, "processed")
