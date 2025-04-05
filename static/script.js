@@ -224,11 +224,15 @@ document.addEventListener("DOMContentLoaded", () => {
         playSound(chordFile);
     } */
 
+    function stopPreview() {
+        currentPreviewAudio.pause();
+        currentPreviewAudio.currentTime = 0;
+        currentPreviewAudio = null;
+    }
+
     function playPreview(songNumber, pitch = 0, start = null, duration = 8) {
         if (currentPreviewAudio) {
-            currentPreviewAudio.pause();
-            currentPreviewAudio.currentTime = 0;
-            currentPreviewAudio = null;
+            stopPreview();
         }
 
         const params = new URLSearchParams();
@@ -261,6 +265,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function playVideo(filename) {
+        if (currentPreviewAudio) {
+            stopPreview();
+        };
         document.body.style.backgroundImage = "none";
         inputBox.style.color = "transparent";
         video.src = `/video/${filename}`;
@@ -302,6 +309,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!video.paused) {
                 video.pause();
+            }
+            if (currentPreviewAudio) {
+                stopPreview();
             }
             video.currentTime = 0;
             video.style.display = "none";
