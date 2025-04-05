@@ -14,6 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
     let duration = "";
     let pitch = 0;
 
+    let currentPreviewAudio = null;
+
     function highlightGreatLeaders(text) {
         const names = ["김일성", "김정일", "김정은"];
         names.forEach(name => {
@@ -132,6 +134,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     songInfo = data;
                     getRemarks(songInfo);
                     showPitchSelection();
+                    playPreview(songNumber=inputNumber);
                 } else {
                     inputNumber = "";
                     songInfo = {};
@@ -194,6 +197,7 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.innerHTML = generateSongSelectedHTML();
     }
 
+    /*
     function playChord(pitch, key) {
         if (!key) return;
     
@@ -218,6 +222,25 @@ document.addEventListener("DOMContentLoaded", () => {
         const chordFile = `chord/c_${fileNum.toString().padStart(2, "0")}.mp3`;
     
         playSound(chordFile);
+    } */
+
+    function playPreview(songNumber, pitch = 0, start = null, duration = 8) {
+        if (currentPreviewAudio) {
+            currentPreviewAudio.pause();
+            currentPreviewAudio.currentTime = 0;
+            currentPreviewAudio = null;
+        }
+
+        const params = new URLSearchParams();
+        params.set("pitch", pitch);
+        if (start !== null) params.set("start", start);
+        if (duration !== null) params.set("duration", duration);
+    
+        const previewAudio = new Audio(`/preview/${songNumber}?${params.toString()}`);
+        previewAudio.volume = 0.5;
+        previewAudio.play().catch(error => console.error("プレビュー音声再生エラー:", error));
+
+        currentPreviewAudio = previewAudio;
     }
 
     function startConversion() {
@@ -295,11 +318,13 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (event.key === "+" && pitch < 8) {
             pitch++;
             inputBox.innerHTML = generateSongSelectedHTML();
-            playChord(pitch, songInfo.songKey);
+            playPreview(songNumber=inputNumber, pitch=pitch);
+            //　playChord(pitch, songInfo.songKey);
         } else if (event.key === "-" && pitch > -8) {
             pitch--;
             inputBox.innerHTML = generateSongSelectedHTML();
-            playChord(pitch, songInfo.songKey);
+            playPreview(songNumber=inputNumber, pitch=pitch);
+            //　playChord(pitch, songInfo.songKey);
         } else if (event.key === "Enter" && inputNumber.length === 4) {
             startConversion();
             playSound("enter.mp3");

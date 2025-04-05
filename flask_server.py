@@ -1,5 +1,6 @@
-from flask import Flask, abort, request, jsonify, send_from_directory
+from flask import Flask, abort, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
+import math
 import os
 import sqlite3
 import subprocess
@@ -47,6 +48,43 @@ def get_song_info(songNumber):
         song_info = res.fetchone()
     conn.close()
     return jsonify(song_info)
+
+
+@app.route("/preview/<songNumber>")
+def preview_song(songNumber):
+    start = request.args.get("start", type=float)
+    duration = request.args.get("duration", default=8.0, type=float)
+    pitch = request.args.get("pitch", default=0, type=int)
+
+    if start is None:
+        conn = sqlite3.connect(os.path.join(base_dir, "songlist.sqlite"))
+        cur = conn.cursor()
+        cur.execute("SELECT vocalStartTime FROM songs WHERE songNumber=?", (songNumber,))
+        row = cur.fetchone()
+        conn.close()
+        if row is None:
+            return abort(404)
+        start = row[0]
+    
+    input_path = os.path.join(VIDEO_DIR, f"{songNumber}.mp4")
+    output_path = f"/tmp/preview_{songNumber}_{start}_{pitch}.mp3"
+
+    semitones = pitch
+    rubberband_pitch = round(math.pow(2, semitones / 12), 5)
+
+    filter_chain = f"atrim=start={start}:duration={duration},asetpts=PTS-STARTPTS"
+    if pitch != 0:
+        filter_chain += f",rubberband=pitch={rubberband_pitch}"
+    
+    command = [
+        "ffmpeg", "-loglevel", "error", "-y", "-i", input_path,
+        "-vn", "-af", filter_chain,
+        "-ar", "44100", "-ac", "2", "-b:a", "192k",
+        output_path
+    ]
+    subprocess.run(command, check=True)
+
+    return send_file(output_path, mimetype="audio/mpeg")
 
 
 @app.route("/convert", methods=["POST"])
