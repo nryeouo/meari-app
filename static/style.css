@@ -83,6 +83,7 @@ body {
     font-family: "Chongbong";
     font-size: 67%;
     margin: 1rem auto 1rem;
+    animation: blinking 1s forwards;
   }
 }
 
