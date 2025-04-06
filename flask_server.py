@@ -72,14 +72,14 @@ def preview_song(songNumber):
     semitones = pitch
     rubberband_pitch = round(math.pow(2, semitones / 12), 5)
 
-    filter_chain = f"atrim=start={start}:duration={duration},asetpts=PTS-STARTPTS"
+    filter_chain = f"atrim=start={start}:duration={duration},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=1,afade=t=out:st={duration-1}:d=1"
     if pitch != 0:
         filter_chain += f",rubberband=pitch={rubberband_pitch}"
     
     command = [
         "ffmpeg", "-loglevel", "error", "-y", "-i", input_path,
         "-vn", "-af", filter_chain,
-        "-ar", "44100", "-ac", "2", "-b:a", "192k",
+        "-ar", "48000", "-ac", "2", "-b:a", "192k",
         output_path
     ]
     subprocess.run(command, check=True)
