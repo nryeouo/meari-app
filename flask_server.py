@@ -6,14 +6,16 @@ import sqlite3
 import subprocess
 
 from config import base_dir, video_files_dir
-
-app = Flask(__name__, static_folder="static", static_url_path="/static")
-CORS(app)
-
-
 VIDEO_DIR = os.path.join(video_files_dir, "video")
 PROCESSED_DIR = os.path.join(video_files_dir, "processed")
 os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+from about_app import *
+about = aboutApp()
+version_info_dict = {"name": about.name, "version": about.version, "owner": about.owner}
+
+app = Flask(__name__, static_folder="static", static_url_path="/static")
+CORS(app)
 
 
 def dict_factory(cursor, row):
@@ -24,6 +26,10 @@ def dict_factory(cursor, row):
 @app.route("/")
 def serve_index():
     return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/about")
+def version_info():
+    return jsonify(version_info_dict)
 
 @app.route('/favicon.ico')
 def favicon():
@@ -110,8 +116,6 @@ def convert_video():
             output_file
         ]
         subprocess.run(ffmpeg_cmd, check=True)
-
-    print(output_file)
 
     return jsonify({"processed_file": os.path.basename(output_file)})
 
