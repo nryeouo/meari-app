@@ -287,6 +287,22 @@ document.addEventListener("DOMContentLoaded", () => {
         video.play();
         video.onended = () => {
             video.style.display = "none";
+    
+            // POSTリクエストの追加部分
+            const data = {
+                time: Math.floor(Date.now() / 1000),
+                songNumber: inputNumber,
+                pitch: pitch
+            };
+    
+            fetch('/control/playEnded', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            }).catch(err => console.error('Failed to send playEnded:', err));
+    
             resetToSelection();
         };
     }

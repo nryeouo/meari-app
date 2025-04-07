@@ -120,6 +120,22 @@ def convert_video():
     return jsonify({"processed_file": os.path.basename(output_file)})
 
 
+@app.route("/control/<controlname>", methods=["POST"])
+def control_handler(controlname):
+    if controlname == "playEnded":
+        return playEnded()
+    else:
+        return jsonify({"error": "Unknown control name"}), 400
+    
+def playEnded():
+    # とりあえず入れただけ
+    data = request.json
+    songNumber = data.get("songNumber")
+    pitch = data.get("pitch")
+    print(songNumber, pitch)
+    return jsonify({"status":"ok"})
+
+
 @app.route("/bgm_list")
 def bgm_list():
     bgm_dir = os.path.join(video_files_dir, "bgm")
