@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let bgmPlayer = null;
     let inputNumber = "";
     let songInfo = {};
+    let versionInfo = {};
     let remarks = "";
     let duration = "";
     let pitch = 0;
@@ -37,16 +38,26 @@ document.addEventListener("DOMContentLoaded", () => {
         pitch = 0;
     }
 
+    function getVersionInfo() {
+        return fetch("/about")
+            .then(res => res.json())
+            .then(version => {
+                versionInfo = version;
+            });
+    }
+
     function resetToStartup() {
         inputBox.style.color = "white";
         initVariables();
-        inputBox.innerHTML = "";
-        setBackground("static/background/title.png");
-        audio.play();
-        setTimeout(() => {
-            setBackground("static/background/input_blank.png");
-            inputBox.innerHTML = initialHTML;
-        }, 5000);
+        getVersionInfo().then(() => {
+            inputBox.innerHTML = `<p>${versionInfo.name}</p><p>Version ${versionInfo.version}</p><span class='lyrics'>${versionInfo.owner}</span>`;
+            setBackground("static/background/title.png");
+            audio.play();
+            setTimeout(() => {
+                setBackground("static/background/input_blank.png");
+                inputBox.innerHTML = initialHTML;
+            }, 5000);
+        });
     }
 
     function resetToSelection() {
@@ -138,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     inputNumber = "";
                     songInfo = {};
-                    inputBox.innerHTML = "<span class='num'>____</span>";
+                    inputBox.innerHTML = "<p>____</p>";
                 }
             })
             .catch(error => console.error("曲リスト取得エラー:", error));
@@ -148,7 +159,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const totalSeconds = minutes * 60;
         let remainingSeconds = totalSeconds;
 
-        inputBox.innerHTML = `<span class='song-name'>휴식시간</span><br>${minutes}분`;
+        inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p>${minutes}분</p>`;
 
         fetch("/bgm_list")
             .then(res => res.json())
@@ -175,13 +186,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 countdown = setInterval(() => {
                     remainingSeconds--;
-                    inputBox.innerHTML = `<span class='song-name'>휴식시간</span><br>${Math.floor(remainingSeconds / 60)}:${(remainingSeconds % 60).toString().padStart(2, '0')}`;
+                    inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p>${Math.floor(remainingSeconds / 60)}:${(remainingSeconds % 60).toString().padStart(2, '0')}</p>`;
                     if (remainingSeconds <= 0) {
                         clearInterval(countdown);
                         countdown = null;
                         bgmPlayer.pause();
                         bgmPlayer = null;
-                        inputBox.innerHTML = "휴식시간이 다 됐습니다";
+                        inputBox.innerHTML = "<p>휴식시간이 다 됐습니다</p>";
                         setTimeout(resetToSelection, 3000);
                     }
                 }, 1000);
@@ -189,7 +200,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function generateSongSelectedHTML() {
-        return `<span class='num'>${inputNumber}</span><br><span class='song-name'>${highlightGreatLeaders(songInfo.songName)}</span><br>${remarks}<br>${duration} | 음정 <span class='num'>${pitch}</span>`;
+        const pitchDisplay = pitch > 0 ? `+${pitch}` : pitch.toString();
+        return `<p>${inputNumber}</p><p class='song-name'>${highlightGreatLeaders(songInfo.songName)}</p><p>${remarks}</p><p>${duration} | 음정 ${pitchDisplay}</p>`;
     }
 
     function showPitchSelection() {
@@ -320,7 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (event.key >= "0" && event.key <= "9" && inputNumber.length < 4) {
             inputNumber += event.key;
-            inputBox.innerHTML = `<span class='num'>${"____".slice(inputNumber.length) + inputNumber}</span>`;
+            inputBox.innerHTML = `<p>${"____".slice(inputNumber.length) + inputNumber}</p>`;
             playSound(`${event.key}.mp3`);
             if (inputNumber.length === 4) {
                 checkSong();
