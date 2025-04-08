@@ -1,3 +1,4 @@
+from about_app import *
 from flask import Flask, abort, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import math
@@ -10,9 +11,9 @@ VIDEO_DIR = os.path.join(video_files_dir, "video")
 PROCESSED_DIR = os.path.join(video_files_dir, "processed")
 os.makedirs(PROCESSED_DIR, exist_ok=True)
 
-from about_app import *
 about = aboutApp()
-version_info_dict = {"name": about.name, "version": about.version, "owner": about.owner}
+version_info_dict = {"name": about.name,
+                     "version": about.version, "owner": about.owner}
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 CORS(app)
@@ -27,9 +28,11 @@ def dict_factory(cursor, row):
 def serve_index():
     return send_from_directory(app.static_folder, "index.html")
 
+
 @app.route("/about")
 def version_info():
     return jsonify(version_info_dict)
+
 
 @app.route('/favicon.ico')
 def favicon():
@@ -65,13 +68,14 @@ def preview_song(songNumber):
     if start is None:
         conn = sqlite3.connect(os.path.join(base_dir, "songlist.sqlite"))
         cur = conn.cursor()
-        cur.execute("SELECT vocalStartTime FROM songs WHERE songNumber=?", (songNumber,))
+        cur.execute(
+            "SELECT vocalStartTime FROM songs WHERE songNumber=?", (songNumber,))
         row = cur.fetchone()
         conn.close()
         if row is None:
             return abort(404)
         start = row[0]
-    
+
     input_path = os.path.join(VIDEO_DIR, f"{songNumber}.mp4")
     output_path = f"/tmp/preview_{songNumber}_{start}_{pitch}.mp3"
 
@@ -81,7 +85,7 @@ def preview_song(songNumber):
     filter_chain = f"atrim=start={start}:duration={duration},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=1,afade=t=out:st={duration-1}:d=1"
     if pitch != 0:
         filter_chain += f",rubberband=pitch={rubberband_pitch}"
-    
+
     command = [
         "ffmpeg", "-loglevel", "error", "-y", "-i", input_path,
         "-vn", "-af", filter_chain,
@@ -109,7 +113,7 @@ def convert_video():
         output_file = input_file
     else:
         ffmpeg_cmd = [
-            "ffmpeg", "-i", input_file,
+            "ffmpeg", "-n", "-loglevel", "error", "-i", input_file,
             "-filter_complex", f"[0:a]rubberband=pitch={(2**(pitch/12)):.2f}[a]",
             "-map", "0:v", "-map", "[a]",
             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
@@ -122,18 +126,18 @@ def convert_video():
 
 @app.route("/control/<controlname>", methods=["POST"])
 def control_handler(controlname):
-    if controlname == "playEnded":
-        return playEnded()
+    func = globals().get(controlname)
+    if callable(func):
+        return func()
     else:
         return jsonify({"error": "Unknown control name"}), 400
-    
+
+
 def playEnded():
-    # とりあえず入れただけ
     data = request.json
     songNumber = data.get("songNumber")
     pitch = data.get("pitch")
-    print(songNumber, pitch)
-    return jsonify({"status":"ok"})
+    return jsonify({"status": "ok"})
 
 
 @app.route("/bgm_list")
