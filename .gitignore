@@ -1,4 +1,5 @@
 .DS_Store
 /env
 /config.py
+/history.sqlite
 /__pycache__

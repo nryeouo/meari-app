@@ -24,6 +24,36 @@ def dict_factory(cursor, row):
     return {key: value for key, value in zip(fields, row)}
 
 
+DB_PATH = os.path.join(base_dir, "history.sqlite")
+
+def init_db():
+    if not os.path.exists(DB_PATH):
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                time INTEGER,
+                songNumber TEXT,
+                pitch INTEGER,
+                status TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+
+init_db()
+
+
+def write_history(time, songNumber, pitch, status):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("insert into history (time, songNumber, pitch, status) values (?, ?, ?, ?)", (time, songNumber, pitch, status))
+    conn.commit()
+    conn.close()
+    return "ok"
+
+
 @app.route("/")
 def serve_index():
     return send_from_directory(app.static_folder, "index.html")
@@ -126,17 +156,18 @@ def convert_video():
 
 @app.route("/control/<controlname>", methods=["POST"])
 def control_handler(controlname):
-    func = globals().get(controlname)
-    if callable(func):
-        return func()
-    else:
-        return jsonify({"error": "Unknown control name"}), 400
+    valid_statuses = {"playStarted", "playEnded", "playAborted"}
+    if controlname in valid_statuses:
+        return handle_play_event(controlname)
+    return jsonify({"error": "Unknown control name"}), 400
 
 
-def playEnded():
+def handle_play_event(status):
     data = request.json
+    time = data.get("time")
     songNumber = data.get("songNumber")
     pitch = data.get("pitch")
+    write_history(time, songNumber, pitch, status)
     return jsonify({"status": "ok"})
 
 

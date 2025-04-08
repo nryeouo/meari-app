@@ -1,4 +1,4 @@
-const initialHTML = "<span class='song-name blink-slow'>노래를 선택합시다</span><br><span class='num'>____</span>"
+const initialHTML = "<p class='song-name blink-slow'>노래를 선택합시다</p><p class='large'>____</p>"
 
 document.addEventListener("DOMContentLoaded", () => {
     const audio = document.getElementById("audio");
@@ -149,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 } else {
                     inputNumber = "";
                     songInfo = {};
-                    inputBox.innerHTML = "<p>____</p>";
+                    inputBox.innerHTML = "<p class='large'>____</p>";
                 }
             })
             .catch(error => console.error("曲リスト取得エラー:", error));
@@ -285,23 +285,34 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "transparent";
         video.src = `/video/${filename}`;
         video.style.display = "block";
-        video.play();
-        video.onended = () => {
-            video.style.display = "none";
-    
-            // POSTリクエストの追加部分
-            const data = {
+
+        fetch('/control/playStarted', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
                 time: Math.floor(Date.now() / 1000),
                 songNumber: inputNumber,
                 pitch: pitch
-            };
+            })
+        }).catch(err => console.error('Failed to send playStarted:', err));
+
+        video.play();
+
+        video.onended = () => {
+            video.style.display = "none";
     
             fetch('/control/playEnded', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(data)
+                body: JSON.stringify({
+                    time: Math.floor(Date.now() / 1000),
+                    songNumber: inputNumber,
+                    pitch: pitch
+                })
             }).catch(err => console.error('Failed to send playEnded:', err));
     
             resetToSelection();
@@ -349,7 +360,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (event.key >= "0" && event.key <= "9" && inputNumber.length < 4) {
             inputNumber += event.key;
-            inputBox.innerHTML = `<p>${"____".slice(inputNumber.length) + inputNumber}</p>`;
+            inputBox.innerHTML = `<p class='large'>${"____".slice(inputNumber.length) + inputNumber}</p>`;
             playSound(`${event.key}.mp3`);
             if (inputNumber.length === 4) {
                 checkSong();
