@@ -87,20 +87,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function getRemarks(songInfo) {
         let remarks_array = [];
-        let lyricist = "";
-        let composer = "";
-        let lyricStart = "";
+        let lyricist = songInfo.lyricist || "";
+        let composer = songInfo.composer || "";
+        let lyricStart = highlightGreatLeaders(songInfo.lyricStart || "");
         console.log(songInfo);
 
         duration = formatSeconds(songInfo.duration);
-
-        if (songInfo.lyricist) {
-            lyricist = songInfo.lyricist;
-        }
-    
-        if (songInfo.composer) {
-            composer = songInfo.composer;
-        }
     
         if (lyricist && composer) {
             if (lyricist === composer) {
@@ -119,15 +111,10 @@ document.addEventListener("DOMContentLoaded", () => {
             remarks_array.push(`<span class='border'>조성</span> ${songInfo.songKey}`)
         };
 
-        if (songInfo.lyricStart) {
-            lyricStart = highlightGreatLeaders(songInfo.lyricStart)
-        };
-        if (lyricStart.length > 0) {
-            remarks = `<span class='lyrics fade-in'>♫ ${lyricStart}</span><br><span class='remarks'>${remarks_array.join(" ")}</span>`
-        } else {
-            remarks = `<span class='remarks'>${remarks_array.join(" / ")}</span>`;
-        };
-    }
+        remarks = lyricStart
+            ? `<span class='lyrics fade-in'>♫ ${lyricStart}</span><br><span class='remarks'>${remarks_array.join(" ")}</span>`
+            : `<span class='remarks'>${remarks_array.join(" ")}</span>`;
+            }
 
     function checkSong() {
         if (inputNumber.startsWith("98")) {
@@ -141,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch(`/song_info/${inputNumber}`)
             .then(response => response.json())
             .then(data => {
-                if (JSON.stringify(data).length > 8) {
+                if (data && data.songName) {
                     songInfo = data;
                     getRemarks(songInfo);
                     showPitchSelection();
@@ -159,7 +146,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const totalSeconds = minutes * 60;
         let remainingSeconds = totalSeconds;
 
-        inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p>${minutes}분</p>`;
+        inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p class='large'>${minutes}분</p>`;
 
         fetch("/bgm_list")
             .then(res => res.json())
@@ -186,7 +173,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 countdown = setInterval(() => {
                     remainingSeconds--;
-                    inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p>${Math.floor(remainingSeconds / 60)}:${(remainingSeconds % 60).toString().padStart(2, '0')}</p>`;
+                    inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p class='large'>${Math.floor(remainingSeconds / 60)}:${(remainingSeconds % 60).toString().padStart(2, '0')}</p>`;
                     if (remainingSeconds <= 0) {
                         clearInterval(countdown);
                         countdown = null;
@@ -237,9 +224,11 @@ document.addEventListener("DOMContentLoaded", () => {
     } */
 
     function stopPreview() {
-        currentPreviewAudio.pause();
-        currentPreviewAudio.currentTime = 0;
-        currentPreviewAudio = null;
+        if (currentPreviewAudio) {
+            currentPreviewAudio.pause();
+            currentPreviewAudio.currentTime = 0;
+            currentPreviewAudio = null;
+        }
     }
 
     function playPreview(songNumber, pitch = 0, start = null, duration = 8) {
@@ -349,10 +338,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!video.paused) {
                 video.pause();
+                fetch('/control/playAborted', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        time: Math.floor(Date.now() / 1000),
+                        songNumber: inputNumber,
+                        pitch: pitch
+                    })
+                }).catch(err => console.error('Failed to send playStarted:', err));
             }
-            if (currentPreviewAudio) {
-                stopPreview();
-            }
+            
+            stopPreview();
             video.currentTime = 0;
             video.style.display = "none";
             resetToSelection();
