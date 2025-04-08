@@ -1,4 +1,4 @@
-const initialHTML = "<span class='song-name blink'>노래를 선택합시다</span><br><span class='num'>____</span>"
+const initialHTML = "<span class='song-name blink-slow'>노래를 선택합시다</span><br><span class='num'>____</span>"
 
 document.addEventListener("DOMContentLoaded", () => {
     const audio = document.getElementById("audio");
@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
             lyricStart = highlightGreatLeaders(songInfo.lyricStart)
         };
         if (lyricStart.length > 0) {
-            remarks = `<span class='lyrics'>♫ ${lyricStart}</span><br><span class='remarks'>${remarks_array.join(" ")}</span>`
+            remarks = `<span class='lyrics fade-in'>♫ ${lyricStart}</span><br><span class='remarks'>${remarks_array.join(" ")}</span>`
         } else {
             remarks = `<span class='remarks'>${remarks_array.join(" / ")}</span>`;
         };
@@ -260,6 +260,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function startConversion() {
+        inputBox.innerHTML += "<p class='lyrics blink-fast'>동화상을 변환합니다...</p>"
         fetch("/convert", {
             method: "POST",
             headers: { "Content-Type": "application/json" },

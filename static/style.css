@@ -55,8 +55,14 @@ body {
     font-family: 'Fragment Mono', monospace;
   }
   */
-  .blink {
+  .blink-slow {
     animation: blinking 3s ease-out infinite alternate;
+  }
+  .blink-fast {
+    animation: blinking 1s ease-out infinite alternate;
+  }
+  .fade-in {
+    animation: blinking 1s forwards;
   }
   .song-name {
     font-family: "Chongbong Bold";
@@ -78,7 +84,6 @@ body {
     color: aquamarine;
     font-family: "Chongbong";
     font-size: 67%;
-    animation: blinking 1s forwards;
   }
 }
 
