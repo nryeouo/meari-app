@@ -46,6 +46,18 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    function sendPlaybackEvent(eventType) {
+        fetch(`/control/${eventType}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                time: Math.floor(Date.now() / 1000),
+                songNumber: inputNumber,
+                pitch: pitch
+            })
+        }).catch(err => console.error(`Failed to send ${eventType}:`, err));
+    }
+
     function resetToStartup() {
         inputBox.style.color = "white";
         initVariables();
@@ -196,33 +208,6 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.innerHTML = generateSongSelectedHTML();
     }
 
-    /*
-    function playChord(pitch, key) {
-        if (!key) return;
-    
-        const noteMap = {
-            "C": 1, "C#": 2, "Db": 2, "D": 3, "D#": 4, "Eb": 4,
-            "E": 5, "F": 6, "F#": 7, "Gb": 7, "G": 8,
-            "G#": 9, "Ab": 9, "A": 10, "A#": 11, "Bb": 11, "B": 12
-        };
-    
-        // メジャー/マイナー判定
-        const isMinor = key.endsWith("m");
-        const baseNote = key.replace("m", "");
-        let num = noteMap[baseNote];
-    
-        if (!num) return;
-    
-        let finalNote = num + pitch;
-        while (finalNote < 1) finalNote += 12;
-        while (finalNote > 12) finalNote -= 12;
-    
-        const fileNum = isMinor ? 20 + finalNote : finalNote;
-        const chordFile = `chord/c_${fileNum.toString().padStart(2, "0")}.mp3`;
-    
-        playSound(chordFile);
-    } */
-
     function stopPreview() {
         if (currentPreviewAudio) {
             currentPreviewAudio.pause();
@@ -275,34 +260,14 @@ document.addEventListener("DOMContentLoaded", () => {
         video.src = `/video/${filename}`;
         video.style.display = "block";
 
-        fetch('/control/playStarted', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                time: Math.floor(Date.now() / 1000),
-                songNumber: inputNumber,
-                pitch: pitch
-            })
-        }).catch(err => console.error('Failed to send playStarted:', err));
+        sendPlaybackEvent("playStarted");
 
         video.play();
 
         video.onended = () => {
             video.style.display = "none";
     
-            fetch('/control/playEnded', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    time: Math.floor(Date.now() / 1000),
-                    songNumber: inputNumber,
-                    pitch: pitch
-                })
-            }).catch(err => console.error('Failed to send playEnded:', err));
+            sendPlaybackEvent("playEnded");
     
             resetToSelection();
         };
@@ -338,17 +303,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             if (!video.paused) {
                 video.pause();
-                fetch('/control/playAborted', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        time: Math.floor(Date.now() / 1000),
-                        songNumber: inputNumber,
-                        pitch: pitch
-                    })
-                }).catch(err => console.error('Failed to send playStarted:', err));
+                sendPlaybackEvent("playAborted");
             }
             
             stopPreview();

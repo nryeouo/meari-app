@@ -24,6 +24,20 @@ def dict_factory(cursor, row):
     return {key: value for key, value in zip(fields, row)}
 
 
+def get_song_titles(songNumberList):
+    conn = sqlite3.connect(os.path.join(base_dir, "songlist.sqlite"))
+    cur = conn.cursor()
+
+    placeholders = ",".join("?" for _ in songNumberList)
+    q = f"SELECT songNumber, songName FROM songs WHERE songNumber IN ({placeholders})"
+
+    cur.execute(q, songNumberList)
+    rows = cur.fetchall()
+    conn.close()
+
+    return {str(number): name for number, name in rows}
+
+
 DB_PATH = os.path.join(base_dir, "history.sqlite")
 
 def init_db():
@@ -142,9 +156,20 @@ def convert_video():
     if pitch == 0:
         output_file = input_file
     else:
+        pitch_factor = 2 ** (pitch / 12)
+        speed_correction = 1 / pitch_factor
+
         ffmpeg_cmd = [
             "ffmpeg", "-n", "-loglevel", "error", "-i", input_file,
-            "-filter_complex", f"[0:a]rubberband=pitch={(2**(pitch/12)):.2f}[a]",
+            "-filter_complex", f"[0:a]rubberband=pitch={(2**(pitch/12)):.2f}:formant=preserved[a]",
+            "-map", "0:v", "-map", "[a]",
+            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+            output_file
+        ]
+
+        ffmpeg_cmd1 = [
+            "ffmpeg", "-n", "-loglevel", "error", "-i", input_file,
+            "-filter_complex", f"[0:a]asetrate=48000*{pitch_factor},atempo={speed_correction},aresample=48000[a]",
             "-map", "0:v", "-map", "[a]",
             "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
             output_file
@@ -169,6 +194,28 @@ def handle_play_event(status):
     pitch = data.get("pitch")
     write_history(time, songNumber, pitch, status)
     return jsonify({"status": "ok"})
+
+
+@app.route("/history")
+def read_history():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = dict_factory
+    cur = conn.cursor()
+    cur.execute("SELECT songNumber, time FROM history WHERE status = 'playEnded' ORDER BY time DESC LIMIT 10")
+    rows = cur.fetchall()
+    conn.close()
+
+    song_numbers = [row["songNumber"] for row in rows]
+    title_dict = get_song_titles(song_numbers)
+
+    return jsonify([
+        {
+            "songNumber": str(row["songNumber"]),
+            "songTitle": title_dict.get(str(row["songNumber"]), "제목없음"),
+            "time": row["time"]
+        }
+        for row in rows
+    ])
 
 
 @app.route("/bgm_list")
