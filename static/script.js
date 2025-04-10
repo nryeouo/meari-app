@@ -98,6 +98,24 @@ document.addEventListener("DOMContentLoaded", () => {
         setBackground("static/background/input_blank.png");
     }
 
+    /* 選曲画面（休憩明け） */
+    async function afterTimer() {
+        video.style.display = "none";
+        inputBox.style.color = "white";
+        setBackground("static/background/input_blank.png");
+        inputBox.innerHTML = "예약정보수신중...";
+        sendPlaybackEvent("playEnded");
+        initVariables();
+    
+        const next = await fetchNextReservedSong();
+        if (next.has_next && next.song && next.song.songNumber) {
+            inputNumber = next.song.songNumber;
+            checkSong();
+        } else {
+            resetToSelection();
+        }
+    };
+
     /* 効果音再生 */
     function playSound(filename) {
         try {
@@ -233,7 +251,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         bgmPlayer.pause();
                         bgmPlayer = null;
                         inputBox.innerHTML = "<p>휴식시간이 다 됐습니다</p>";
-                        setTimeout(resetToSelection, 3000);
+                        setTimeout(afterTimer, 3000);
                     }
                 }, 1000);
             });
