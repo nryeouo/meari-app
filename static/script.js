@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const audio = document.getElementById("audio");
     const inputBox = document.getElementById("input-box");
     const video = document.getElementById("video");
+    const scrollingDiv = document.getElementById("scrolling-history");
     const startButton = document.getElementById("start-button");
 
     let countdown = null;
@@ -17,6 +18,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let currentPreviewAudio = null;
 
+    /* 尊名を太字に */
     function highlightGreatLeaders(text) {
         const names = ["김일성", "김정일", "김정은"];
         names.forEach(name => {
@@ -26,10 +28,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return text;
     }
 
+    /* 背景画像設定 */
     function setBackground(image) {
         document.body.style.backgroundImage = `url(${image})`;
     }
 
+    /* 変数初期化 */
     function initVariables() {
         inputNumber = "";
         songInfo = {};
@@ -38,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
         pitch = 0;
     }
 
+    /* バージョン情報 */
     function getVersionInfo() {
         return fetch("/about")
             .then(res => res.json())
@@ -46,6 +51,17 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    /* 予約曲問い合わせ */
+    function fetchNextReservedSong() {
+        return fetch("/next_reserved_song")
+            .then(response => response.json())
+            .catch(error => {
+                console.error("予約システム問い合わせ失敗:", error);
+                return { has_next: false };
+            });
+    }
+    
+    /* 再生状態報告 */
     function sendPlaybackEvent(eventType) {
         fetch(`/control/${eventType}`, {
             method: 'POST',
@@ -58,6 +74,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }).catch(err => console.error(`Failed to send ${eventType}:`, err));
     }
 
+    /* 起動画面 */
     function resetToStartup() {
         inputBox.style.color = "white";
         initVariables();
@@ -72,13 +89,16 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    /* 選曲画面 */
     function resetToSelection() {
         inputBox.style.color = "white";
         initVariables();
         inputBox.innerHTML = initialHTML;
+        scrollingDiv.style.display = "none";
         setBackground("static/background/input_blank.png");
     }
 
+    /* 効果音再生 */
     function playSound(filename) {
         try {
             const sound = new Audio(`static/sounds/${filename}`);
@@ -88,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-
+    /* 秒数を分秒に */
     function formatSeconds(seconds) {
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
@@ -96,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${minutes}:${formattedSeconds}`;
     }
 
-
+    /* 曲情報生成 */
     function getRemarks(songInfo) {
         let remarks_array = [];
         let lyricist = songInfo.lyricist || "";
@@ -126,8 +146,9 @@ document.addEventListener("DOMContentLoaded", () => {
         remarks = lyricStart
             ? `<span class='lyrics fade-in'>♫ ${lyricStart}</span><br><span class='remarks'>${remarks_array.join(" ")}</span>`
             : `<span class='remarks'>${remarks_array.join(" ")}</span>`;
-            }
+    }
 
+    /* 曲存在確認、再生準備画面 */
     function checkSong() {
         if (inputNumber.startsWith("98")) {
             const minutes = parseInt(inputNumber.slice(2), 10);
@@ -154,6 +175,25 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(error => console.error("曲リスト取得エラー:", error));
     }
 
+    /* 休憩時の履歴表示 */
+    function updateScrollingHistory() {
+        fetch("/history")
+            .then(res => res.json())
+            .then(historyList => {
+                const recent = historyList.slice(0, 5);
+
+                const text = "〈최근 부른 노래〉" + recent.map(item =>
+                    `${item.songNumber} ${item.songTitle}`
+                ).join(" | ");
+    
+                const scrollingDiv = document.getElementById("scrolling-history");
+                scrollingDiv.textContent = text;
+                scrollingDiv.style.display = "block";
+            })
+            .catch(err => console.error("履歴取得エラー:", err));
+    }
+
+    /* 休憩タイマー */
     function startTimerWithBGM(minutes) {
         const totalSeconds = minutes * 60;
         let remainingSeconds = totalSeconds;
@@ -174,6 +214,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 bgmPlayer = new Audio(`/bgm/${fileList[currentIndex]}`);
                 bgmPlayer.volume = 0.3;
                 bgmPlayer.play();
+                updateScrollingHistory();
 
                 const playNext = () => {
                     currentIndex = (currentIndex + 1) % fileList.length;
@@ -198,11 +239,13 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    /* 再生準備画面の文字情報 */
     function generateSongSelectedHTML() {
         const pitchDisplay = pitch > 0 ? `+${pitch}` : pitch.toString();
         return `<p>${inputNumber}</p><p class='song-name'>${highlightGreatLeaders(songInfo.songName)}</p><p>${remarks}</p><p>${duration} | 음정 ${pitchDisplay}</p>`;
     }
 
+    /* 再生準備画面 */
     function showPitchSelection() {
         setBackground("static/background/input_blank.png");
         inputBox.innerHTML = generateSongSelectedHTML();
@@ -233,6 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
         currentPreviewAudio = previewAudio;
     }
 
+    /* 動画問い合わせ */
     function startConversion() {
         inputBox.innerHTML += "<p class='lyrics blink-fast'>동화상을 변환합니다...</p>"
         fetch("/convert", {
@@ -251,11 +295,13 @@ document.addEventListener("DOMContentLoaded", () => {
             .catch(error => console.error("変換リクエストエラー:", error));
     }
 
+    /* 再生開始 */
     function playVideo(filename) {
         if (currentPreviewAudio) {
             stopPreview();
         };
         document.body.style.backgroundImage = "none";
+        inputBox.innerHTML = "";
         inputBox.style.color = "transparent";
         video.src = `/video/${filename}`;
         video.style.display = "block";
@@ -264,15 +310,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
         video.play();
 
-        video.onended = () => {
+        video.onended = async () => {
             video.style.display = "none";
-    
+            inputBox.style.color = "white";
+            setBackground("static/background/input_blank.png");
+            inputBox.innerHTML = "예약정보수신중...";
             sendPlaybackEvent("playEnded");
-    
-            resetToSelection();
+        
+            const next = await fetchNextReservedSong();
+            if (next.has_next && next.song && next.song.songNumber) {
+                inputNumber = next.song.songNumber;
+                checkSong();
+            } else {
+                resetToSelection();
+            }
         };
     }
 
+    /* 右上の時計 */
     function updateClock() {
         const now = new Date();
         const hours = now.getHours().toString().padStart(2, '0');
@@ -289,6 +344,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resetToStartup();
     });
 
+    /* キーバインド */
     document.addEventListener("keydown", (event) => {
 
         if (event.key === "Escape") {
@@ -322,13 +378,13 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (event.key === "+" && pitch < 8) {
             pitch++;
             inputBox.innerHTML = generateSongSelectedHTML();
+            playSound(`plus.mp3`);
             playPreview(songNumber=inputNumber, pitch=pitch);
-            //　playChord(pitch, songInfo.songKey);
         } else if (event.key === "-" && pitch > -8) {
             pitch--;
             inputBox.innerHTML = generateSongSelectedHTML();
+            playSound(`minus.mp3`);
             playPreview(songNumber=inputNumber, pitch=pitch);
-            //　playChord(pitch, songInfo.songKey);
         } else if (event.key === "Enter" && inputNumber.length === 4) {
             startConversion();
             playSound("enter.mp3");

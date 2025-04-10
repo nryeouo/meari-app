@@ -5,4 +5,5 @@ flask-cors
 itsdangerous
 Jinja2
 MarkupSafe
+requests
 Werkzeug

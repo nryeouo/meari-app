@@ -13,6 +13,7 @@ FFmpegを入れる
 ```python
 base_dir = "/path/to/your/dir" # meari-appの置き場所
 video_files_dir = "/path/to/your/dir" # 動画フォルダの場所。下に bgm フォルダを配置可能
+resv_api_url = "https://example.com/api/v1/" #予約システム連携用
 ```
 
 `python3 -m pip install -r requirements.txt`  

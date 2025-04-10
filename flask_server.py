@@ -3,10 +3,11 @@ from flask import Flask, abort, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import math
 import os
+import requests
 import sqlite3
 import subprocess
 
-from config import base_dir, video_files_dir
+from config import base_dir, video_files_dir, resv_api_url
 VIDEO_DIR = os.path.join(video_files_dir, "video")
 PROCESSED_DIR = os.path.join(video_files_dir, "processed")
 os.makedirs(PROCESSED_DIR, exist_ok=True)
@@ -87,6 +88,18 @@ def favicon():
 def get_songs():
     songs = [f for f in os.listdir(VIDEO_DIR) if f.endswith(".mp4")]
     return jsonify({"songs": songs})
+
+
+
+@app.route("/next_reserved_song")
+def next_reserved_song():
+    try:
+        res = requests.get(resv_api_url, timeout=3)
+        res.raise_for_status()
+        return jsonify(res.json())
+    except requests.RequestException as e:
+        print("予約システムへの接続エラー:", e)
+        return jsonify({"has_next": False})
 
 
 @app.route("/song_info/<songNumber>", methods=["GET"])

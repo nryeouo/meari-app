@@ -103,3 +103,19 @@ body {
   font-size: 24px;
   padding: 10px 20px;
 }
+
+#scrolling-history {
+  position: fixed;
+  bottom: 10px;
+  left: 100%;
+  white-space: nowrap;
+  font-family: "WKFixd";
+  font-size: 4vmin;
+  color: gold;
+  animation: scroll-left 30s linear infinite;
+}
+
+@keyframes scroll-left {
+  from { transform: translateX(0%); }
+  to { transform: translateX(-200%); }
+}
