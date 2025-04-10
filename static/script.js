@@ -316,6 +316,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setBackground("static/background/input_blank.png");
             inputBox.innerHTML = "예약정보수신중...";
             sendPlaybackEvent("playEnded");
+            initVariables();
         
             const next = await fetchNextReservedSong();
             if (next.has_next && next.song && next.song.songNumber) {
