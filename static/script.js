@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let countdown = null;
     let bgmPlayer = null;
+    let waitMusic = null;
     let inputNumber = "";
     let songInfo = {};
     let versionInfo = {};
@@ -201,11 +202,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 const recent = historyList.slice(0, 5);
 
                 const text = "〈최근 부른 노래〉" + recent.map(item =>
-                    `${item.songNumber} ${item.songTitle}`
-                ).join(" | ");
+                    `<span class='border'>${item.songNumber}</span> ${item.songTitle}`
+                ).join(" / ");
     
                 const scrollingDiv = document.getElementById("scrolling-history");
-                scrollingDiv.textContent = text;
+                scrollingDiv.innerHTML = text;
                 scrollingDiv.style.display = "block";
             })
             .catch(err => console.error("履歴取得エラー:", err));
@@ -297,6 +298,13 @@ document.addEventListener("DOMContentLoaded", () => {
     /* 動画問い合わせ */
     function startConversion() {
         inputBox.innerHTML += "<p class='lyrics blink-fast'>동화상을 변환합니다...</p>"
+        if (pitch != 0) {
+            if (currentPreviewAudio) {
+                stopPreview();
+            };
+            waitMusic = new Audio("static/sounds/wait.mp3");
+            waitMusic.play().catch(error => console.error("変換中音声再生エラー:", error));;
+        };
         fetch("/convert", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -317,6 +325,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function playVideo(filename) {
         if (currentPreviewAudio) {
             stopPreview();
+        };
+        if (waitMusic) {
+            waitMusic.pause();
+            waitMusic = null;
         };
         document.body.style.backgroundImage = "none";
         inputBox.innerHTML = "";

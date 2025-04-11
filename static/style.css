@@ -113,6 +113,10 @@ body {
   font-size: 4vmin;
   color: gold;
   animation: scroll-left 30s linear infinite;
+  .border {
+    background-color: white;
+    color: black;
+}
 }
 
 @keyframes scroll-left {
