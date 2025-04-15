@@ -330,32 +330,35 @@ document.addEventListener("DOMContentLoaded", () => {
             waitMusic.pause();
             waitMusic = null;
         };
+    
         document.body.style.backgroundImage = "none";
         inputBox.innerHTML = "";
         inputBox.style.color = "transparent";
-        video.src = `/video/${filename}`;
+        video.src = filename;  // ← 署名付きURLをそのままセット！
         video.style.display = "block";
-
+    
         sendPlaybackEvent("playStarted");
-
-        video.play();
-
-        video.onended = async () => {
-            video.style.display = "none";
-            inputBox.style.color = "white";
-            setBackground("static/background/input_blank.png");
-            inputBox.innerHTML = "예약정보수신중...";
-            sendPlaybackEvent("playEnded");
-            initVariables();
-        
-            const next = await fetchNextReservedSong();
-            if (next.has_next && next.song && next.song.songNumber) {
-                inputNumber = next.song.songNumber;
-                checkSong();
-            } else {
-                resetToSelection();
-            }
-        };
+    
+        video.play().then(() => {
+            video.onended = async () => {
+                video.style.display = "none";
+                inputBox.style.color = "white";
+                setBackground("static/background/input_blank.png");
+                inputBox.innerHTML = "예약정보수신중...";
+                sendPlaybackEvent("playEnded");
+                initVariables();
+    
+                const next = await fetchNextReservedSong();
+                if (next.has_next && next.song && next.song.songNumber) {
+                    inputNumber = next.song.songNumber;
+                    checkSong();
+                } else {
+                    resetToSelection();
+                }
+            };
+        }).catch(err => {
+            console.error("動画再生エラー:", err);
+        });
     }
 
     /* 右上の時計 */

@@ -1,5 +1,10 @@
 .DS_Store
+/docker/Dockerfile
+/docker/docker-compose.yml
+/cloudbuild.yaml
 /env
-/config.py
-/history.sqlite
+/docker/keys
+/docker/config.py
+/docker/cors.json
+/docker/history.sqlite
 /__pycache__

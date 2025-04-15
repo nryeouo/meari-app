@@ -2,6 +2,7 @@ blinker
 click
 Flask
 flask-cors
+google-cloud-storage
 itsdangerous
 Jinja2
 MarkupSafe

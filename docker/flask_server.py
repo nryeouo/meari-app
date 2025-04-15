@@ -1,22 +1,28 @@
 from about_app import *
-from flask import Flask, abort, request, jsonify, send_file, send_from_directory
+from flask import Flask, abort, request, redirect, jsonify, send_file, send_from_directory
 from flask_cors import CORS
+from google.cloud import storage
+import datetime
 import math
 import os
 import requests
 import sqlite3
 import subprocess
+import tempfile
 
-from config import base_dir, video_files_dir, resv_api_url
-VIDEO_DIR = os.path.join(video_files_dir, "video")
-PROCESSED_DIR = os.path.join(video_files_dir, "processed")
-os.makedirs(PROCESSED_DIR, exist_ok=True)
+# from config import base_dir, video_files_dir, resv_api_url
+from config import base_dir, resv_api_url
+# VIDEO_DIR = os.path.join(video_files_dir, "video")
+# PROCESSED_DIR = os.path.join(video_files_dir, "processed")
+# os.makedirs(PROCESSED_DIR, exist_ok=True)
 
 about = aboutApp()
 version_info_dict = {"name": about.name,
                      "version": about.version, "owner": about.owner}
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
+client = storage.Client()
+bucket = client.bucket("meari-video")
 CORS(app)
 
 
@@ -86,9 +92,15 @@ def favicon():
 
 @app.route("/songs", methods=["GET"])
 def get_songs():
-    songs = [f for f in os.listdir(VIDEO_DIR) if f.endswith(".mp4")]
-    return jsonify({"songs": songs})
+    conn = sqlite3.connect(os.path.join(base_dir, "songlist.sqlite"))
+    conn.row_factory = dict_factory
+    cur = conn.cursor()
+    cur.execute("SELECT songNumber FROM songs ORDER BY songNumber")
+    rows = cur.fetchall()
+    conn.close()
 
+    song_numbers = [row["songNumber"] for row in rows]
+    return jsonify({"songs": song_numbers})
 
 
 @app.route("/next_reserved_song")
@@ -118,40 +130,42 @@ def get_song_info(songNumber):
 
 @app.route("/preview/<songNumber>")
 def preview_song(songNumber):
-    start = request.args.get("start", type=float)
-    duration = request.args.get("duration", default=8.0, type=float)
-    pitch = request.args.get("pitch", default=0, type=int)
+    pitch = int(request.args.get("pitch", 0))
 
-    if start is None:
-        conn = sqlite3.connect(os.path.join(base_dir, "songlist.sqlite"))
-        cur = conn.cursor()
-        cur.execute(
-            "SELECT vocalStartTime FROM songs WHERE songNumber=?", (songNumber,))
-        row = cur.fetchone()
-        conn.close()
-        if row is None:
-            return abort(404)
-        start = row[0]
+    # GCS上のMP3を指定
+    preview_blob = storage.Client().bucket("meari-video").blob(f"preview/{songNumber}.mp3")
 
-    input_path = os.path.join(VIDEO_DIR, f"{songNumber}.mp4")
-    output_path = f"/tmp/preview_{songNumber}_{start}_{pitch}.mp3"
+    if not preview_blob.exists():
+        return jsonify({"error": "preview mp3 not found"}), 404
 
-    semitones = pitch
-    rubberband_pitch = round(math.pow(2, semitones / 12), 5)
+    # pitch = 0 → 署名付きURLでリダイレクト
+    if pitch == 0:
+        url = preview_blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.timedelta(minutes=15),
+            method="GET"
+        )
+        return redirect(url)
 
-    filter_chain = f"atrim=start={start}:duration={duration},asetpts=PTS-STARTPTS,afade=t=in:st=0:d=1,afade=t=out:st={duration-1}:d=1"
-    if pitch != 0:
-        filter_chain += f",rubberband=pitch={rubberband_pitch}"
+    # pitch ≠ 0 → mp3を一時DLしてrubberbandで音程変更
+    with tempfile.NamedTemporaryFile(suffix=".mp3") as temp_input, \
+         tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_output:
 
-    command = [
-        "ffmpeg", "-loglevel", "error", "-y", "-i", input_path,
-        "-vn", "-af", filter_chain,
-        "-ar", "48000", "-ac", "2", "-b:a", "192k",
-        output_path
-    ]
-    subprocess.run(command, check=True)
+        preview_blob.download_to_filename(temp_input.name)
 
-    return send_file(output_path, mimetype="audio/mpeg")
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", temp_input.name,
+            "-af", f"rubberband=pitch={2 ** (pitch / 12):.5f}",
+            "-acodec", "libmp3lame",
+            temp_output.name
+        ]
+
+        try:
+            subprocess.run(cmd, check=True)
+            return send_file(temp_output.name, mimetype="audio/mpeg")
+        except subprocess.CalledProcessError:
+            return jsonify({"error": "ffmpeg pitch change failed"}), 500
 
 
 @app.route("/convert", methods=["POST"])
@@ -160,36 +174,43 @@ def convert_video():
     song_number = data.get("song_number")
     pitch = int(data.get("pitch", 0))
 
-    input_file = os.path.join(VIDEO_DIR, f"{song_number}.mp4")
-    output_file = os.path.join(PROCESSED_DIR, f"{song_number}_p{pitch}.mp4")
+    input_blob = storage.Client().bucket("meari-video").blob(f"{song_number}.mp4")
+    if not input_blob.exists():
+        return jsonify({"error": "video not found"}), 404
 
-    if not os.path.exists(input_file):
-        return jsonify({"error": "File not found"}), 404
+    with tempfile.NamedTemporaryFile(suffix=".mp4") as temp_input, \
+         tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_output:
 
-    if pitch == 0:
-        output_file = input_file
-    else:
-        pitch_factor = 2 ** (pitch / 12)
-        speed_correction = 1 / pitch_factor
+        input_blob.download_to_filename(temp_input.name)
 
-        ffmpeg_cmd = [
-            "ffmpeg", "-n", "-loglevel", "error", "-i", input_file,
-            "-filter_complex", f"[0:a]rubberband=pitch={(2**(pitch/12)):.2f}:formant=preserved[a]",
-            "-map", "0:v", "-map", "[a]",
-            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-            output_file
+        if pitch == 0:
+            # pitch変更なし → 元のファイルの署名付きURLを返す
+            url = input_blob.generate_signed_url(
+                version="v4",
+                expiration=datetime.timedelta(minutes=15),
+                method="GET"
+            )
+            return jsonify({"processed_file": url})
+
+        cmd = [
+            "ffmpeg", "-y",
+            "-i", temp_input.name,
+            "-af", f"rubberband=pitch={2 ** (pitch / 12):.5f}",
+            "-c:v", "copy",
+            temp_output.name
         ]
+        subprocess.run(cmd, check=True)
 
-        ffmpeg_cmd1 = [
-            "ffmpeg", "-n", "-loglevel", "error", "-i", input_file,
-            "-filter_complex", f"[0:a]asetrate=48000*{pitch_factor},atempo={speed_correction},aresample=48000[a]",
-            "-map", "0:v", "-map", "[a]",
-            "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
-            output_file
-        ]
-        subprocess.run(ffmpeg_cmd, check=True)
+        # 一時的にGCSにアップロードして署名URLを返す
+        output_blob = storage.Client().bucket("meari-video").blob(f"temp/{song_number}_{pitch:+d}.mp4")
+        output_blob.upload_from_filename(temp_output.name)
 
-    return jsonify({"processed_file": os.path.basename(output_file)})
+        url = output_blob.generate_signed_url(
+            version="v4",
+            expiration=datetime.timedelta(minutes=15),
+            method="GET"
+        )
+        return jsonify({"processed_file": url})
 
 
 @app.route("/control/<controlname>", methods=["POST"])
@@ -233,11 +254,12 @@ def read_history():
 
 @app.route("/bgm_list")
 def bgm_list():
-    bgm_dir = os.path.join(video_files_dir, "bgm")
-    bgm_files = [f for f in os.listdir(bgm_dir) if f.endswith(".mp3")]
+    bucket = storage.Client().bucket("meari-video")
+    blobs = list(bucket.list_blobs(prefix="bgm/"))
+    bgm_files = [blob.name.replace("bgm/", "") for blob in blobs if blob.name.endswith(".mp3")]
     return jsonify(bgm_files)
 
-
+"""
 @app.route("/video/<filename>", methods=["GET"])
 def get_video(filename):
     # 変換後の動画があればそれを提供、なければ元の動画を提供
@@ -250,17 +272,34 @@ def get_video(filename):
         return send_from_directory(VIDEO_DIR, filename)
     else:
         return abort(404)
+"""
+
+@app.route("/video/<filename>")
+def get_signed_video_url(filename):
+    blob = bucket.blob(filename)
+    if not blob.exists():
+        return jsonify({"error": "File not found"}), 404
+
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(minutes=15),
+        method="GET"
+    )
+    return jsonify({"url": url})
 
 
-@app.route("/bgm/<filename>", methods=["GET"])
+@app.route("/bgm/<filename>")
 def get_bgm(filename):
-    bgm_file_dir = os.path.join(video_files_dir, "bgm")
-    bgm_file_path = os.path.join(bgm_file_dir, filename)
-    if os.path.exists(bgm_file_path):
-        return send_from_directory(bgm_file_dir, filename)
-    else:
-        return abort(404)
+    blob = storage.Client().bucket("meari-video").blob(f"bgm/{filename}")
+    if not blob.exists():
+        return jsonify({"error": "not found"}), 404
+    url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(minutes=15),
+        method="GET"
+    )
+    return redirect(url)
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5556, debug=True)
+    app.run(host="0.0.0.0", port=8080, debug=True)
