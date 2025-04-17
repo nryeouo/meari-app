@@ -10,6 +10,7 @@ import sqlite3
 import subprocess
 import tempfile
 
+
 # from config import base_dir, video_files_dir, resv_api_url
 from config import base_dir, resv_api_url
 # VIDEO_DIR = os.path.join(video_files_dir, "video")
@@ -155,6 +156,7 @@ def preview_song(songNumber):
 
         cmd = [
             "ffmpeg", "-y",
+            "-loglevel", "error",
             "-i", temp_input.name,
             "-af", f"rubberband=pitch={2 ** (pitch / 12):.5f}",
             "-acodec", "libmp3lame",
@@ -194,6 +196,7 @@ def convert_video():
 
         cmd = [
             "ffmpeg", "-y",
+            "-loglevel", "error",
             "-i", temp_input.name,
             "-af", f"rubberband=pitch={2 ** (pitch / 12):.5f}",
             "-c:v", "copy",
@@ -202,7 +205,7 @@ def convert_video():
         subprocess.run(cmd, check=True)
 
         # 一時的にGCSにアップロードして署名URLを返す
-        output_blob = storage.Client().bucket("meari-video").blob(f"temp/{song_number}_{pitch:+d}.mp4")
+        output_blob = storage.Client().bucket("meari-temp").blob(f"temp/{song_number}_{pitch:+d}.mp4")
         output_blob.upload_from_filename(temp_output.name)
 
         url = output_blob.generate_signed_url(

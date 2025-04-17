@@ -297,12 +297,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* 動画問い合わせ */
     function startConversion() {
-        inputBox.innerHTML += "<p class='lyrics blink-fast'>동화상을 변환합니다...</p>"
+        inputBox.innerHTML += "<p class='lyrics blink-fast' style='background:white;'>변환중...Converting Video</p>"
         if (pitch != 0) {
             if (currentPreviewAudio) {
                 stopPreview();
             };
-            waitMusic = new Audio("static/sounds/wait.mp3");
+            waitMusic = new Audio("static/sounds/wait2.mp3");
             waitMusic.play().catch(error => console.error("変換中音声再生エラー:", error));;
         };
         fetch("/convert", {
