@@ -68,7 +68,6 @@ document.addEventListener("DOMContentLoaded", () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                time: Math.floor(Date.now() / 1000),
                 songNumber: inputNumber,
                 pitch: pitch
             })

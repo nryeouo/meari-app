@@ -1,8 +1,10 @@
 from about_app import *
+from firebase_admin import credentials, firestore
 from flask import Flask, abort, request, redirect, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 from google.cloud import storage
 import datetime
+import firebase_admin
 import math
 import os
 import requests
@@ -16,6 +18,13 @@ from config import base_dir, resv_api_url
 # VIDEO_DIR = os.path.join(video_files_dir, "video")
 # PROCESSED_DIR = os.path.join(video_files_dir, "processed")
 # os.makedirs(PROCESSED_DIR, exist_ok=True)
+
+# Connect to Firestore
+if not firebase_admin._apps:
+    cred = credentials.ApplicationDefault()
+    firebase_admin.initialize_app(cred)
+
+db = firestore.client()
 
 about = aboutApp()
 version_info_dict = {"name": about.name,
@@ -67,13 +76,23 @@ def init_db():
 init_db()
 
 
-def write_history(time, songNumber, pitch, status):
+def write_history(songNumber, pitch, status):
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
+    time = datetime.datetime.now(datetime.timezone.utc)
     cur.execute("insert into history (time, songNumber, pitch, status) values (?, ?, ?, ?)", (time, songNumber, pitch, status))
     conn.commit()
     conn.close()
     return "ok"
+
+
+def write_history_firestore(songNumber, pitch, status):
+    db.collection("history").add({
+        "time": datetime.datetime.now(datetime.timezone.utc),
+        "songNumber": songNumber,
+        "pitch": pitch,
+        "status": status
+    })
 
 
 @app.route("/")
@@ -226,14 +245,38 @@ def control_handler(controlname):
 
 def handle_play_event(status):
     data = request.json
-    time = data.get("time")
     songNumber = data.get("songNumber")
     pitch = data.get("pitch")
-    write_history(time, songNumber, pitch, status)
+    write_history_firestore(songNumber, pitch, status)
     return jsonify({"status": "ok"})
 
 
 @app.route("/history")
+def read_history_v2():
+    docs = (
+        db.collection("history")
+        .where("status", "==", "playEnded")
+        .order_by("time", direction=firestore.Query.DESCENDING)
+        .limit(10)
+        .stream()
+    )
+
+    rows = [{"songNumber": doc.get("songNumber"), "time": doc.get("time")} for doc in docs]
+
+    song_numbers = [row["songNumber"] for row in rows]
+    title_dict = get_song_titles(song_numbers)
+
+    return jsonify([
+        {
+            "songNumber": str(row["songNumber"]),
+            "songTitle": title_dict.get(str(row["songNumber"]), "제목없음"),
+            "time": row["time"]
+        }
+        for row in rows
+    ])
+
+
+"""
 def read_history():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = dict_factory
@@ -253,6 +296,7 @@ def read_history():
         }
         for row in rows
     ])
+"""
 
 
 @app.route("/bgm_list")

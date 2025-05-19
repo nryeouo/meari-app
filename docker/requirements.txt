@@ -1,5 +1,6 @@
 blinker
 click
+firebase-admin
 Flask
 flask-cors
 google-cloud-storage
