@@ -255,7 +255,7 @@ def handle_play_event(status):
 def read_history_v2():
     docs = (
         db.collection("history")
-        .where("status", "==", "playEnded")
+        .where(filter=firestore.FieldFilter("status", "==", "playEnded"))
         .order_by("time", direction=firestore.Query.DESCENDING)
         .limit(10)
         .stream()
@@ -270,7 +270,7 @@ def read_history_v2():
         {
             "songNumber": str(row["songNumber"]),
             "songTitle": title_dict.get(str(row["songNumber"]), "제목없음"),
-            "time": row["time"]
+            "time": int(datetime.datetime.timestamp(row["time"]))
         }
         for row in rows
     ])
