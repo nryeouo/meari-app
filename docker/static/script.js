@@ -201,7 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 const recent = historyList.slice(0, 5);
 
                 const text = "〈최근 부른 노래〉" + recent.map(item =>
-                    `<span class='border'>${item.songNumber}</span> ${item.songTitle}`
+                    `<span class='border'>${item.songNumber}</span> ${highlightGreatLeaders(item.songTitle)}`
                 ).join(" / ");
     
                 const scrollingDiv = document.getElementById("scrolling-history");
