@@ -1,5 +1,6 @@
 .DS_Store
 .gcloudignore
+/docker/__pycache__
 /docker/Dockerfile
 /docker/docker-compose.yml
 /cloudbuild.yaml

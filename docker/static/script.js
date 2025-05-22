@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const scrollingDiv = document.getElementById("scrolling-history");
     const startButton = document.getElementById("start-button");
 
+    let historyDocId = null;
     let countdown = null;
     let bgmPlayer = null;
     let waitMusic = null;
@@ -41,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
         remarks = "";
         duration = "";
         pitch = 0;
+        historyDocId = null;
     }
 
     /* バージョン情報 */
@@ -72,6 +74,51 @@ document.addEventListener("DOMContentLoaded", () => {
                 pitch: pitch
             })
         }).catch(err => console.error(`Failed to send ${eventType}:`, err));
+    }
+
+    /* 履歴管理 */
+    function createHistoryRecord() {
+        const createdAt = Math.floor(Date.now() / 1000);
+        return fetch("/history/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                songNumber: inputNumber,
+                pitch: pitch,
+                created_at: createdAt
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            historyDocId = data.docId;
+        })
+        .catch(err => {
+            console.error("履歴の新規作成エラー:", err);
+        });
+    }
+    
+    function updateHistory(status) {
+        if (!historyDocId) {
+            console.warn("historyDocId が未設定のため、履歴更新をスキップ");
+            return;
+        }
+
+        const createdAt = Math.floor(Date.now() / 1000);
+        const payload = {
+            status: status,
+            created_at: createdAt
+        };
+
+        if (status === "playStarted") {
+            payload.pitch = pitch;  // pitchを追加
+        }
+
+        fetch(`/history/update/${historyDocId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+        .catch(err => console.error(`履歴更新（${status}）失敗:`, err));
     }
 
     /* 起動画面 */
@@ -182,8 +229,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (data && data.songName) {
                     songInfo = data;
                     getRemarks(songInfo);
-                    showPitchSelection();
-                    playPreview(songNumber=inputNumber);
+                    createHistoryRecord().then(() => {
+                        showPitchSelection();
+                        playPreview(songNumber = inputNumber);
+                    });
                 } else {
                     inputNumber = "";
                     songInfo = {};
@@ -198,9 +247,10 @@ document.addEventListener("DOMContentLoaded", () => {
         fetch("/history")
             .then(res => res.json())
             .then(historyList => {
-                const recent = historyList.slice(0, 5);
+                const recentSongs = historyList.recent.slice(0, 5);
+                const playedCount = `〈총재생곡수〉 ${historyList.totalCount}곡 `;
 
-                const text = "〈최근 부른 노래〉" + recent.map(item =>
+                const text = playedCount + "〈최근 부른 노래〉" + recentSongs.map(item =>
                     `<span class='border'>${item.songNumber}</span> ${highlightGreatLeaders(item.songTitle)}`
                 ).join(" / ");
     
@@ -335,16 +385,15 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "transparent";
         video.src = filename;  // ← 署名付きURLをそのままセット！
         video.style.display = "block";
-    
-        sendPlaybackEvent("playStarted");
-    
+
         video.play().then(() => {
+            updateHistory("playStarted");
             video.onended = async () => {
                 video.style.display = "none";
                 inputBox.style.color = "white";
                 setBackground("static/background/input_blank.png");
                 inputBox.innerHTML = "예약정보수신중...";
-                sendPlaybackEvent("playEnded");
+                updateHistory("playFinished");
                 initVariables();
     
                 const next = await fetchNextReservedSong();
@@ -390,9 +439,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 bgmPlayer = null;
             }
 
-            if (!video.paused) {
+            if (!video.paused && video.currentTime > 0) {
                 video.pause();
-                sendPlaybackEvent("playAborted");
+                updateHistory("playAborted");
+            } else if (inputNumber.length === 4 && !video.src) {
+                updateHistory("songCancelled");
             }
             
             stopPreview();

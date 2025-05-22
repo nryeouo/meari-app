@@ -253,50 +253,85 @@ def handle_play_event(status):
 
 @app.route("/history")
 def read_history_v2():
+    history_ref = db.collection("history")
+
     docs = (
-        db.collection("history")
-        .where(filter=firestore.FieldFilter("status", "==", "playEnded"))
-        .order_by("time", direction=firestore.Query.DESCENDING)
+        history_ref
+        .where(filter=firestore.FieldFilter("status", "==", "playFinished"))
+        .order_by("updated_at", direction=firestore.Query.DESCENDING)
         .limit(10)
         .stream()
     )
 
-    rows = [{"songNumber": doc.get("songNumber"), "time": doc.get("time")} for doc in docs]
+    rows = [{"songNumber": doc.get("songNumber"), "updated_at": doc.get("updated_at")} for doc in docs]
 
     song_numbers = [row["songNumber"] for row in rows]
     title_dict = get_song_titles(song_numbers)
 
-    return jsonify([
-        {
-            "songNumber": str(row["songNumber"]),
-            "songTitle": title_dict.get(str(row["songNumber"]), "제목없음"),
-            "time": int(datetime.datetime.timestamp(row["time"]))
-        }
-        for row in rows
-    ])
+    count_query = history_ref.where(
+        filter=firestore.FieldFilter("status", "==", "playFinished")
+    ).count()
+    count_result = count_query.get()
+    total_count = count_result[0][0].value
+
+    return jsonify({
+        "totalCount": total_count,
+        "recent": [
+            {
+                "songNumber": str(row["songNumber"]),
+                "songTitle": title_dict.get(str(row["songNumber"]), "---"),
+                "updated_at": int(datetime.datetime.timestamp(row["updated_at"]))
+            }
+            for row in rows
+        ]
+    })
 
 
-"""
-def read_history():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = dict_factory
-    cur = conn.cursor()
-    cur.execute("SELECT songNumber, time FROM history WHERE status = 'playEnded' ORDER BY time DESC LIMIT 10")
-    rows = cur.fetchall()
-    conn.close()
+# ドキュメント作成
+@app.route('/history/create', methods=['POST'])
+def create_history():
+    data = request.json
+    data['events'] = [{
+        "status": "songSelected",
+        "created_at": datetime.datetime.now(tz=datetime.timezone.utc)
+    }]
+    data['status'] = "songSelected"
+    doc_ref = db.collection("history").add(data)
+    return jsonify({"docId": doc_ref[1].id})
 
-    song_numbers = [row["songNumber"] for row in rows]
-    title_dict = get_song_titles(song_numbers)
+# ドキュメント更新
+@app.route('/history/update/<doc_id>', methods=['POST'])
+def update_history(doc_id):
+    data = request.json
+    doc_ref = db.collection("history").document(doc_id)
+    doc = doc_ref.get()
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
 
-    return jsonify([
-        {
-            "songNumber": str(row["songNumber"]),
-            "songTitle": title_dict.get(str(row["songNumber"]), "제목없음"),
-            "time": row["time"]
-        }
-        for row in rows
-    ])
-"""
+    if not doc.exists:
+        return "Not found", 404
+
+    current_data = doc.to_dict()
+    final_statuses = ["songCancelled", "playAborted", "playFinished"]
+    if current_data["status"] in final_statuses:
+        return "Already finalized", 400
+
+    event = {
+        "status": data["status"],
+        "created_at": now
+    }
+
+    update_fields = {
+        "status": data["status"],
+        "updated_at": now,
+        "events": firestore.ArrayUnion([event])
+    }
+
+    # pitchを受け取ったときだけ反映する
+    if "pitch" in data:
+        update_fields["pitch"] = data["pitch"]
+
+    doc_ref.update(update_fields)
+    return "OK", 200
 
 
 @app.route("/bgm_list")
