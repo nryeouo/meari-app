@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const video = document.getElementById("video");
     const scrollBg = document.getElementById("scroll-background");
     const scrollingDiv = document.getElementById("scrolling-history");
+    const launchImg = document.getElementById("launch-image");
     const startButton = document.getElementById("start-button");
 
     let historyDocId = null;
@@ -67,7 +68,7 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .then(eventInfo => {
                 if (eventInfo) {
-                    latestEvent = `제${eventInfo.eventNumber}차 ${eventInfo.location} - `
+                    latestEvent = `제${eventInfo.eventNumber}차대회 ${eventInfo.location} - `
                 } else {
                     latestEvent = ""
                 };
@@ -368,7 +369,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* 動画問い合わせ */
     function startConversion() {
-        inputBox.innerHTML += "<p class='lyrics blink-fast' style='background:white;'>변환중...Converting Video</p>"
+        inputBox.innerHTML += "<p class='lyrics blink-fast' style='background:white;'>내리적재중...Downloading Video</p>"
         if (pitch != 0) {
             if (currentPreviewAudio) {
                 stopPreview();
@@ -446,6 +447,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     startButton.addEventListener("click", () => {
         startButton.style.display = "none";
+        launchImg.style.display = "none";
         resetToStartup();
     });
 

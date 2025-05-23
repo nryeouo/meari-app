@@ -31,6 +31,44 @@
   }
 }
 
+@keyframes rainbow {
+  0% {
+    color: #ff0053;
+  }
+
+  12% {
+    color: #ff5353;
+  }
+
+  24% {
+    color: #ffcf53;
+  }
+
+  36% {
+    color: #e8ff53;
+  }
+
+  48% {
+    color: #53ff5d;
+  }
+
+  60% {
+    color: #53ffbc;
+  }
+
+  72% {
+    color: #5393ff;
+  }
+
+  84% {
+    color: #ca53ff;
+  }
+
+  100% {
+    color: #ff53bd;
+  }
+}
+
 html {
   height: 100%;
 }
@@ -71,6 +109,9 @@ body {
   .fade-in {
     animation: blinking 1s forwards;
   }
+  .rainbow {
+    animation: rainbow 10s infinite alternate;
+  }
   .song-name {
     font-family: "Chongbong Bold";
     font-size: 133%;
@@ -105,11 +146,8 @@ body {
 }
 
 #start-button {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   font-size: 24px;
+  margin: 1vmin 0;
   padding: 10px 20px;
 }
 
@@ -125,7 +163,7 @@ body {
 #scrolling-history {
   position: fixed;
   bottom: 10px;
-  left: 100%;
+  padding-left: 100%;
   white-space: nowrap;
   font-family: "WKFixd";
   font-size: 4vmin;
@@ -138,6 +176,6 @@ body {
 }
 
 @keyframes scroll-left {
-  from { transform: translateX(0%); }
-  to { transform: translateX(-200%); }
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
 }

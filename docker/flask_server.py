@@ -307,10 +307,13 @@ def read_history_v2():
 # ドキュメント作成
 @app.route('/history/create', methods=['POST'])
 def create_history():
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
     data = request.json
+    if data.get("created_at"):
+        data["created_at"] = now
     data['events'] = [{
         "status": "songSelected",
-        "created_at": datetime.datetime.now(tz=datetime.timezone.utc)
+        "created_at": now
     }]
     data['status'] = "songSelected"
     doc_ref = db.collection("history").add(data)
