@@ -105,6 +105,23 @@ def version_info():
     return jsonify(version_info_dict)
 
 
+@app.route("/event-info")
+def event_info():
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    events_ref = db.collection("karaoke_events")
+    latest_event_query = events_ref.order_by("startTime", direction=firestore.Query.DESCENDING).limit(5)
+    results = latest_event_query.stream()
+
+    for doc in results:
+        event = doc.to_dict()
+        start = event.get("startTime")
+        end = event.get("endTime")
+        if start and end and start <= now < end:
+            return jsonify(event)
+
+    return jsonify({}), 204
+
+
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(app.static_folder, "favicon.ico")
@@ -130,7 +147,7 @@ def next_reserved_song():
         res.raise_for_status()
         return jsonify(res.json())
     except requests.RequestException as e:
-        print("予約システムへの接続エラー:", e)
+        # print("予約システムへの接続エラー:", e)
         return jsonify({"has_next": False})
 
 

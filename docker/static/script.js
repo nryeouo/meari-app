@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const audio = document.getElementById("audio");
     const inputBox = document.getElementById("input-box");
     const video = document.getElementById("video");
+    const scrollBg = document.getElementById("scroll-background");
     const scrollingDiv = document.getElementById("scrolling-history");
     const startButton = document.getElementById("start-button");
 
@@ -14,6 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let inputNumber = "";
     let songInfo = {};
     let versionInfo = {};
+    let latestEvent = null;
     let remarks = "";
     let duration = "";
     let pitch = 0;
@@ -51,6 +53,24 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(res => res.json())
             .then(version => {
                 versionInfo = version;
+            });
+    }
+
+    function getEventInfo() {
+        return fetch("/event-info")
+            .then(res => {
+                if (res.status === 204) {
+                    // 該当イベントなし
+                    return null;
+                }
+                return res.json();
+            })
+            .then(eventInfo => {
+                if (eventInfo) {
+                    latestEvent = `제${eventInfo.eventNumber}차 ${eventInfo.location} - `
+                } else {
+                    latestEvent = ""
+                };
             });
     }
 
@@ -124,6 +144,7 @@ document.addEventListener("DOMContentLoaded", () => {
     /* 起動画面 */
     function resetToStartup() {
         inputBox.style.color = "white";
+        scrollBg.style.display = "none";
         initVariables();
         getVersionInfo().then(() => {
             inputBox.innerHTML = `<p>${versionInfo.name}</p><p>Version ${versionInfo.version}</p><span class='lyrics'>${versionInfo.owner}</span>`;
@@ -141,6 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "white";
         initVariables();
         inputBox.innerHTML = initialHTML;
+        scrollBg.style.display = "none";
         scrollingDiv.style.display = "none";
         setBackground("static/background/input_blank.png");
     }
@@ -248,14 +270,14 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(res => res.json())
             .then(historyList => {
                 const recentSongs = historyList.recent.slice(0, 5);
-                const playedCount = `〈총재생곡수〉 ${historyList.totalCount}곡 `;
+                const playedCount = `〈총재생곡수〉 ${historyList.totalCount} `;
 
                 const text = playedCount + "〈최근 부른 노래〉" + recentSongs.map(item =>
                     `<span class='border'>${item.songNumber}</span> ${highlightGreatLeaders(item.songTitle)}`
                 ).join(" / ");
-    
-                const scrollingDiv = document.getElementById("scrolling-history");
+
                 scrollingDiv.innerHTML = text;
+                scrollBg.style.display = "block";
                 scrollingDiv.style.display = "block";
             })
             .catch(err => console.error("履歴取得エラー:", err));
@@ -415,10 +437,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const hours = now.getHours().toString().padStart(2, '0');
         const minutes = now.getMinutes().toString().padStart(2, '0');
         const seconds = now.getSeconds().toString().padStart(2, '0');
-        document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
+        document.getElementById('clock').textContent = `${latestEvent}${hours}:${minutes}:${seconds}`;
     }
 
     setInterval(updateClock, 1000);
+    getEventInfo();
     updateClock();
 
     startButton.addEventListener("click", () => {
