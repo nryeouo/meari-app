@@ -8,6 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const scrollingDiv = document.getElementById("scrolling-history");
     const launchImg = document.getElementById("launch-image");
     const startButton = document.getElementById("start-button");
+    const videoTitle = document.getElementById("video-title");
 
     let historyDocId = null;
     let countdown = null;
@@ -16,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let inputNumber = "";
     let songInfo = {};
     let versionInfo = {};
-    let latestEvent = null;
+    let latestEvent = "";
     let remarks = "";
     let duration = "";
     let pitch = 0;
@@ -165,6 +166,7 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.innerHTML = initialHTML;
         scrollBg.style.display = "none";
         scrollingDiv.style.display = "none";
+        videoTitle.style.display = "none";
         setBackground("static/background/input_blank.png");
     }
 
@@ -408,11 +410,14 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "transparent";
         video.src = filename;  // ← 署名付きURLをそのままセット！
         video.style.display = "block";
+        videoTitle.innerHTML = highlightGreatLeaders(songInfo.songName);
+        videoTitle.style.display = "block";
 
         video.play().then(() => {
             updateHistory("playStarted");
             video.onended = async () => {
                 video.style.display = "none";
+                videoTitle.style.display = "none";
                 inputBox.style.color = "white";
                 setBackground("static/background/input_blank.png");
                 inputBox.innerHTML = "예약정보수신중...";
