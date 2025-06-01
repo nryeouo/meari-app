@@ -1,6 +1,9 @@
 # meari-app
 マイク式画面音楽伴奏機の演奏を、ノート型コンピュータで利用できるようにするもの  
 
+> [!NOTE]
+> 実用ではDockerとGoogle Cloudを使っているので、以下「設置」「使用開始」は過去の情報  
+
 ## 準備
 FFmpegを入れる  
 - 音程を変えるために必要
@@ -19,8 +22,8 @@ resv_api_url = "https://example.com/api/v1/" #予約システム連携用
 `python3 -m pip install -r requirements.txt`  
 
 ## 使用開始
-1. `python3 flask_server.py`  
-2. Webブラウザで`127.0.0.1:5556`に接続  
+1. `python3 app.py`  
+2. Webブラウザで`127.0.0.1:8080`に接続  
 3. ［프로그람시동］ボタンを押す
 
 ## 選曲
