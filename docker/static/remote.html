@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>リモコン</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f5f5f5;
+    }
+    #display {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(3, 80px);
+      grid-gap: 10px;
+    }
+    .keypad button {
+      font-size: 1.5rem;
+      padding: 20px;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+    }
+    .keypad button:active {
+      background-color: #0056b3;
+    }
+    .actions {
+      margin-top: 1rem;
+      display: flex;
+      gap: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="display">____</div>
+  <div class="keypad">
+    <button data-key="1">1</button>
+    <button data-key="2">2</button>
+    <button data-key="3">3</button>
+    <button data-key="4">4</button>
+    <button data-key="5">5</button>
+    <button data-key="6">6</button>
+    <button data-key="7">7</button>
+    <button data-key="8">8</button>
+    <button data-key="9">9</button>
+    <button data-key="+">+</button>
+    <button data-key="0">0</button>
+    <button data-key="-">-</button>
+  </div>
+  <div class="actions">
+    <button data-key="Enter">Enter</button>
+    <button data-key="Escape">Esc</button>
+  </div>
+
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js" integrity="sha384-mkQ3/7FUtcGyoppY6bz/PORYoGqOl7/aSUMn2ymDOJcapfS6PHqxhRTMh1RR0Q6+" crossorigin="anonymous"></script>
+  <script>
+    const socket = io();
+    const display = document.getElementById("display");
+    let inputBuffer = "";
+
+    function updateDisplay() {
+      const padded = "____".slice(inputBuffer.length) + inputBuffer;
+      display.textContent = padded;
+    }
+
+    document.querySelectorAll("button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.key;
+        socket.emit("remote_key", key);
+
+        if (/^[0-9]$/.test(key)) {
+          if (inputBuffer.length < 4) {
+            inputBuffer += key;
+            updateDisplay();
+          }
+        } else if (key === "Escape") {
+          inputBuffer = "";
+          updateDisplay();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

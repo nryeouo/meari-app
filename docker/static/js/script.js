@@ -1,28 +1,38 @@
-const initialHTML = "<p class='song-name blink-slow'>노래를 선택합시다</p><p class='large'>____</p>"
+const initialHTML = "<p id='select-song' class='song-name blink-slow'>노래를 선택합시다</p><p class='large'>____</p>";
+const defaultTitleBarMessage = "화면반주가상체계《메아리》";
+const defaultEventName = "조선화면반주음악대회";
+const museColours = ["--ll-maki", "--ll-honoka", "--ll-rin", "--ll-hanayo", "--ll-eli", "--ll-umi", "--ll-nozomi", "--ll-nico", "--ll-kotori"];
+
+function getRandomColour() {
+    const randomColourIndex = Math.floor(Math.random() * museColours.length);
+    return museColours[randomColourIndex];
+}
+
+const sessionState = {
+    inputNumber: "",
+    songInfo: {},
+    remarks: "",
+    duration: "",
+    pitch: 0,
+    historyDocId: null,
+    currentPreviewAudio: null,
+    countdown: null,
+    latestEvent : null,
+    titleBarTimer: null
+};
 
 document.addEventListener("DOMContentLoaded", () => {
     const audio = document.getElementById("audio");
     const inputBox = document.getElementById("input-box");
+    const selectSongMsg = document.getElementById("select-song");
     const video = document.getElementById("video");
     const scrollBg = document.getElementById("scroll-background");
     const scrollingDiv = document.getElementById("scrolling-history");
     const launchImg = document.getElementById("launch-image");
     const startButton = document.getElementById("start-button");
-    const videoTitle = document.getElementById("video-title");
 
-    let historyDocId = null;
-    let countdown = null;
-    let bgmPlayer = null;
-    let waitMusic = null;
-    let inputNumber = "";
-    let songInfo = {};
-    let versionInfo = {};
-    let latestEvent = "";
-    let remarks = "";
-    let duration = "";
-    let pitch = 0;
-
-    let currentPreviewAudio = null;
+    let versionInfo = null;
+    let discordNotification = [];
 
     /* 尊名を太字に */
     function highlightGreatLeaders(text) {
@@ -38,18 +48,66 @@ document.addEventListener("DOMContentLoaded", () => {
     function setBackground(image) {
         document.body.style.backgroundImage = `url(${image})`;
     }
+    
+    function updateTitleBarContent(messages) {
+        const titleBar = document.getElementById("video-title");
+
+        if (!Array.isArray(messages) || messages.length === 0) return;
+
+        if (sessionState.titleBarTimer !== null) {
+            clearTimeout(sessionState.titleBarTimer);
+        }
+
+        let index = 0;
+        let active = true;  // タイマーの生存状態フラグ
+
+        function showNextMessage() {
+            if (!active) return;
+
+            titleBar.classList.remove("slide-from-top");
+            titleBar.classList.add("fade-out");
+
+            setTimeout(() => {
+                if (!active) return;
+
+                titleBar.innerHTML = messages[index];
+                let randomColour = getRandomColour();
+                titleBar.style.color = `color-mix(in srgb, white 40%, var(${randomColour}) 60%)`;
+                titleBar.style.textShadow = `0 0 0.25rem var(${randomColour})`;
+                titleBar.classList.remove("fade-out");
+                titleBar.classList.add("slide-from-top");
+
+                index = (index + 1) % messages.length;
+                if (messages.length > 1) {
+                    sessionState.titleBarTimer = setTimeout(showNextMessage, 18000);
+                }
+            }, 500);
+        }
+
+        // 前のタイマーを完全に無効化
+        if (typeof sessionState.titleBarCancel === "function") {
+            sessionState.titleBarCancel();
+        }
+
+        sessionState.titleBarCancel = () => {
+            active = false;
+            clearTimeout(sessionState.titleBarTimer);
+        };
+
+        showNextMessage();
+    }
 
     /* 変数初期化 */
     function initVariables() {
-        inputNumber = "";
-        songInfo = {};
-        remarks = "";
-        duration = "";
-        pitch = 0;
-        historyDocId = null;
+        sessionState.inputNumber = "";
+        sessionState.songInfo = {};
+        sessionState.remarks = "";
+        sessionState.duration = "";
+        sessionState.pitch = 0;
+        sessionState.historyDocId = null;
+        sessionState.titleBarTimer = null;
     }
 
-    /* バージョン情報 */
     function getVersionInfo() {
         return fetch("/about")
             .then(res => res.json())
@@ -69,12 +127,29 @@ document.addEventListener("DOMContentLoaded", () => {
             })
             .then(eventInfo => {
                 if (eventInfo) {
-                    latestEvent = `제${eventInfo.eventNumber}차대회 ${eventInfo.location} - `
+                    sessionState.latestEvent = `제${eventInfo.eventNumber}차대회(${eventInfo.location})`;
                 } else {
-                    latestEvent = ""
+                    sessionState.latestEvent = null;
                 };
             });
     }
+
+    function fetchDiscordNotifications() {
+        fetch("/notify/list")
+            .then(response => response.json())
+            .then(data => {
+                if (Array.isArray(data)) {
+                    discordNotification = data;
+                    console.log("通知メッセージ更新:", discordNotification);
+                }
+            })
+            .catch(error => {
+                console.error("通知メッセージの取得エラー:", error);
+            });
+    }
+
+    fetchDiscordNotifications();
+    setInterval(fetchDiscordNotifications, 60000);
 
     /* 予約曲問い合わせ */
     function fetchNextReservedSong() {
@@ -85,34 +160,32 @@ document.addEventListener("DOMContentLoaded", () => {
                 return { has_next: false };
             });
     }
-    
-    /* 再生状態報告 */
+
     function sendPlaybackEvent(eventType) {
         fetch(`/control/${eventType}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                songNumber: inputNumber,
-                pitch: pitch
+                songNumber: sessionState.inputNumber,
+                pitch: sessionState.pitch
             })
         }).catch(err => console.error(`Failed to send ${eventType}:`, err));
     }
 
-    /* 履歴管理 */
     function createHistoryRecord() {
         const createdAt = Math.floor(Date.now() / 1000);
         return fetch("/history/create", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                songNumber: inputNumber,
-                pitch: pitch,
+                songNumber: sessionState.inputNumber,
+                pitch: sessionState.pitch,
                 created_at: createdAt
             })
         })
         .then(res => res.json())
         .then(data => {
-            historyDocId = data.docId;
+            sessionState.historyDocId = data.docId;
         })
         .catch(err => {
             console.error("履歴の新規作成エラー:", err);
@@ -120,7 +193,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     
     function updateHistory(status) {
-        if (!historyDocId) {
+        if (!sessionState.historyDocId) {
             console.warn("historyDocId が未設定のため、履歴更新をスキップ");
             return;
         }
@@ -132,10 +205,10 @@ document.addEventListener("DOMContentLoaded", () => {
         };
 
         if (status === "playStarted") {
-            payload.pitch = pitch;  // pitchを追加
+            payload.pitch = sessionState.pitch;  // pitchを追加
         }
 
-        fetch(`/history/update/${historyDocId}`, {
+        fetch(`/history/update/${sessionState.historyDocId}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
@@ -155,6 +228,8 @@ document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => {
                 setBackground("static/background/input_blank.png");
                 inputBox.innerHTML = initialHTML;
+                const selectSongMsg = document.getElementById("select-song");
+                selectSongMsg.style.color = `color-mix(in srgb, white 30%, var(${getRandomColour()}) 70%)`;
             }, 5000);
         });
     }
@@ -164,13 +239,14 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "white";
         initVariables();
         inputBox.innerHTML = initialHTML;
+        const selectSongMsg = document.getElementById("select-song");
+        selectSongMsg.style.color = `color-mix(in srgb, white 30%, var(${getRandomColour()}) 70%)`;
         scrollBg.style.display = "none";
         scrollingDiv.style.display = "none";
-        videoTitle.style.display = "none";
+        updateTitleBarContent(sessionState.latestEvent? [defaultEventName, sessionState.latestEvent]: [defaultTitleBarMessage]);
         setBackground("static/background/input_blank.png");
     }
 
-    /* 選曲画面（休憩明け） */
     async function afterTimer() {
         video.style.display = "none";
         inputBox.style.color = "white";
@@ -181,15 +257,14 @@ document.addEventListener("DOMContentLoaded", () => {
     
         const next = await fetchNextReservedSong();
         if (next.has_next && next.song && next.song.songNumber) {
-            inputNumber = next.song.songNumber;
+            sessionState.inputNumber = next.song.songNumber;
             checkSong();
         } else {
             resetToSelection();
         }
     };
 
-    /* 効果音再生 */
-    function playSound(filename) {
+    function playSoundEffect(filename) {
         try {
             const sound = new Audio(`static/sounds/${filename}`);
             sound.play().catch(error => console.error("音声再生エラー:", error));
@@ -198,7 +273,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    /* 秒数を分秒に */
     function formatSeconds(seconds) {
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
@@ -206,15 +280,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return `${minutes}:${formattedSeconds}`;
     }
 
-    /* 曲情報生成 */
-    function getRemarks(songInfo) {
+    function generateRemarksFromSong(songInfo) {
         let remarks_array = [];
         let lyricist = songInfo.lyricist || "";
         let composer = songInfo.composer || "";
         let lyricStart = highlightGreatLeaders(songInfo.lyricStart || "");
         console.log(songInfo);
 
-        duration = formatSeconds(songInfo.duration);
+        sessionState.duration = formatSeconds(songInfo.duration);
     
         if (lyricist && composer) {
             if (lyricist === composer) {
@@ -233,34 +306,34 @@ document.addEventListener("DOMContentLoaded", () => {
             remarks_array.push(`<span class='border'>조성</span> ${songInfo.songKey}`)
         };
 
-        remarks = lyricStart
+        sessionState.remarks = lyricStart
             ? `<span class='lyrics fade-in'>♫ ${lyricStart}</span><br><span class='remarks'>${remarks_array.join(" ")}</span>`
             : `<span class='remarks'>${remarks_array.join(" ")}</span>`;
     }
 
     /* 曲存在確認、再生準備画面 */
     function checkSong() {
-        if (inputNumber.startsWith("98")) {
-            const minutes = parseInt(inputNumber.slice(2), 10);
+        if (sessionState.inputNumber.startsWith("98")) {
+            const minutes = parseInt(sessionState.inputNumber.slice(2), 10);
             if (!isNaN(minutes)) {
                 startTimerWithBGM(minutes);
                 return;
             }
         }
 
-        fetch(`/song_info/${inputNumber}`)
+        fetch(`/song_info/${sessionState.inputNumber}`)
             .then(response => response.json())
             .then(data => {
                 if (data && data.songName) {
-                    songInfo = data;
-                    getRemarks(songInfo);
+                    sessionState.songInfo = data;
+                    generateRemarksFromSong(sessionState.songInfo);
                     createHistoryRecord().then(() => {
                         showPitchSelection();
-                        playPreview(songNumber = inputNumber);
+                        playPreview(sessionState.inputNumber);
                     });
                 } else {
-                    inputNumber = "";
-                    songInfo = {};
+                    sessionState.inputNumber = "";
+                    sessionState.songInfo = {};
                     inputBox.innerHTML = "<p class='large'>____</p>";
                 }
             })
@@ -304,27 +377,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 fileList = fileList.sort(() => Math.random() - 0.5);
 
                 let currentIndex = 0;
-                bgmPlayer = new Audio(`/bgm/${fileList[currentIndex]}`);
-                bgmPlayer.volume = 0.3;
-                bgmPlayer.play();
+                sessionState.currentPreviewAudio = new Audio(`/bgm/${fileList[currentIndex]}`);
+                sessionState.currentPreviewAudio.volume = 0.3;
+                sessionState.currentPreviewAudio.play();
                 updateScrollingHistory();
 
                 const playNext = () => {
                     currentIndex = (currentIndex + 1) % fileList.length;
-                    bgmPlayer.src = `/bgm/${fileList[currentIndex]}`;
-                    bgmPlayer.play();
+                    sessionState.currentPreviewAudio.src = `/bgm/${fileList[currentIndex]}`;
+                    sessionState.currentPreviewAudio.play();
                 };
 
-                bgmPlayer.addEventListener("ended", playNext);
+                sessionState.currentPreviewAudio.addEventListener("ended", playNext);
 
-                countdown = setInterval(() => {
+                sessionState.countdown = setInterval(() => {
                     remainingSeconds--;
                     inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p class='large'>${Math.floor(remainingSeconds / 60)}:${(remainingSeconds % 60).toString().padStart(2, '0')}</p>`;
                     if (remainingSeconds <= 0) {
-                        clearInterval(countdown);
-                        countdown = null;
-                        bgmPlayer.pause();
-                        bgmPlayer = null;
+                        clearInterval(sessionState.countdown);
+                        sessionState.countdown = null;
+                        sessionState.currentPreviewAudio.pause();
+                        sessionState.currentPreviewAudio = null;
                         inputBox.innerHTML = "<p>휴식시간이 다 됐습니다</p>";
                         setTimeout(afterTimer, 3000);
                     }
@@ -334,8 +407,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* 再生準備画面の文字情報 */
     function generateSongSelectedHTML() {
-        const pitchDisplay = pitch > 0 ? `+${pitch}` : pitch.toString();
-        return `<p>${inputNumber}</p><p class='song-name'>${highlightGreatLeaders(songInfo.songName)}</p><p>${remarks}</p><p>${duration} | 음정 ${pitchDisplay}</p>`;
+        const pitchDisplay = sessionState.pitch > 0 ? `+${sessionState.pitch}` : sessionState.pitch.toString();
+        return `<p>${sessionState.inputNumber}</p><p class='song-name'>${highlightGreatLeaders(sessionState.songInfo.songName)}</p><p>${sessionState.remarks}</p><p>${sessionState.duration} | 음정 ${pitchDisplay}</p>`;
     }
 
     /* 再生準備画面 */
@@ -345,15 +418,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function stopPreview() {
-        if (currentPreviewAudio) {
-            currentPreviewAudio.pause();
-            currentPreviewAudio.currentTime = 0;
-            currentPreviewAudio = null;
+        if (sessionState.currentPreviewAudio) {
+            sessionState.currentPreviewAudio.pause();
+            sessionState.currentPreviewAudio.currentTime = 0;
+            sessionState.currentPreviewAudio = null;
         }
     }
 
     function playPreview(songNumber, pitch = 0, start = null, duration = 8) {
-        if (currentPreviewAudio) {
+        if (sessionState.currentPreviewAudio) {
             stopPreview();
         }
 
@@ -366,23 +439,23 @@ document.addEventListener("DOMContentLoaded", () => {
         previewAudio.volume = 0.5;
         previewAudio.play().catch(error => console.error("プレビュー音声再生エラー:", error));
 
-        currentPreviewAudio = previewAudio;
+        sessionState.currentPreviewAudio = previewAudio;
     }
 
     /* 動画問い合わせ */
     function startConversion() {
         inputBox.innerHTML += "<p class='lyrics blink-fast' style='background:white;'>내리적재중...Downloading Video</p>"
-        if (pitch != 0) {
-            if (currentPreviewAudio) {
+        if (sessionState.pitch !== 0) {
+            if (sessionState.currentPreviewAudio) {
                 stopPreview();
             };
-            waitMusic = new Audio("static/sounds/wait2.mp3");
-            waitMusic.play().catch(error => console.error("変換中音声再生エラー:", error));;
+            sessionState.currentPreviewAudio = new Audio("static/sounds/wait2.mp3");
+            sessionState.currentPreviewAudio.play().catch(error => console.error("変換中音声再生エラー:", error));;
         };
         fetch("/convert", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ song_number: inputNumber, pitch })
+            body: JSON.stringify({ song_number: sessionState.inputNumber, pitch: sessionState.pitch })
         })
             .then(response => response.json())
             .then(data => {
@@ -397,27 +470,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     /* 再生開始 */
     function playVideo(filename) {
-        if (currentPreviewAudio) {
+        if (sessionState.currentPreviewAudio) {
             stopPreview();
-        };
-        if (waitMusic) {
-            waitMusic.pause();
-            waitMusic = null;
         };
     
         document.body.style.backgroundImage = "none";
         inputBox.innerHTML = "";
         inputBox.style.color = "transparent";
-        video.src = filename;  // ← 署名付きURLをそのままセット！
+        video.src = filename;
         video.style.display = "block";
-        videoTitle.innerHTML = highlightGreatLeaders(songInfo.songName);
-        videoTitle.style.display = "block";
+        updateTitleBarContent([highlightGreatLeaders(sessionState.songInfo.songName), defaultTitleBarMessage]);
 
         video.play().then(() => {
             updateHistory("playStarted");
             video.onended = async () => {
                 video.style.display = "none";
-                videoTitle.style.display = "none";
+                updateTitleBarContent(sessionState.latestEvent? [defaultEventName, sessionState.latestEvent]: [defaultTitleBarMessage]);
                 inputBox.style.color = "white";
                 setBackground("static/background/input_blank.png");
                 inputBox.innerHTML = "예약정보수신중...";
@@ -426,7 +494,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
                 const next = await fetchNextReservedSong();
                 if (next.has_next && next.song && next.song.songNumber) {
-                    inputNumber = next.song.songNumber;
+                    sessionState.inputNumber = next.song.songNumber;
                     checkSong();
                 } else {
                     resetToSelection();
@@ -443,11 +511,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const hours = now.getHours().toString().padStart(2, '0');
         const minutes = now.getMinutes().toString().padStart(2, '0');
         const seconds = now.getSeconds().toString().padStart(2, '0');
-        document.getElementById('clock').textContent = `${latestEvent}${hours}:${minutes}:${seconds}`;
+        document.getElementById('clock').textContent = `${hours}:${minutes}:${seconds}`;
     }
 
     setInterval(updateClock, 1000);
     getEventInfo();
+    updateTitleBarContent(sessionState.latestEvent? [defaultEventName, sessionState.latestEvent]: [defaultTitleBarMessage]);
     updateClock();
 
     startButton.addEventListener("click", () => {
@@ -460,19 +529,19 @@ document.addEventListener("DOMContentLoaded", () => {
     document.addEventListener("keydown", (event) => {
 
         if (event.key === "Escape") {
-            if (countdown !== null) {
-                clearInterval(countdown);
-                countdown = null;
+            if (sessionState.countdown !== null) {
+                clearInterval(sessionState.countdown);
+                sessionState.countdown = null;
             }
-            if (bgmPlayer !== null) {
-                bgmPlayer.pause();
-                bgmPlayer = null;
+            if (sessionState.currentPreviewAudio !== null) {
+                sessionState.currentPreviewAudio.pause();
+                sessionState.currentPreviewAudio = null;
             }
 
             if (!video.paused && video.currentTime > 0) {
                 video.pause();
                 updateHistory("playAborted");
-            } else if (inputNumber.length === 4 && !video.src) {
+            } else if (sessionState.inputNumber.length === 4 && !video.src) {
                 updateHistory("songCancelled");
             }
             
@@ -482,26 +551,26 @@ document.addEventListener("DOMContentLoaded", () => {
             resetToSelection();
         }
 
-        if (event.key >= "0" && event.key <= "9" && inputNumber.length < 4) {
-            inputNumber += event.key;
-            inputBox.innerHTML = `<p class='large'>${"____".slice(inputNumber.length) + inputNumber}</p>`;
-            playSound(`${event.key}.mp3`);
-            if (inputNumber.length === 4) {
+        if (event.key >= "0" && event.key <= "9" && sessionState.inputNumber.length < 4) {
+            sessionState.inputNumber += event.key;
+            inputBox.innerHTML = `<p class='large'>${"____".slice(sessionState.inputNumber.length) + sessionState.inputNumber}</p>`;
+            playSoundEffect(`${event.key}.mp3`);
+            if (sessionState.inputNumber.length === 4) {
                 checkSong();
             }
-        } else if (event.key === "+" && pitch < 8) {
-            pitch++;
+        } else if (event.key === "+" && sessionState.pitch < 8) {
+            sessionState.pitch++;
             inputBox.innerHTML = generateSongSelectedHTML();
-            playSound(`plus.mp3`);
-            playPreview(songNumber=inputNumber, pitch=pitch);
-        } else if (event.key === "-" && pitch > -8) {
-            pitch--;
+            playSoundEffect(`plus.mp3`);
+            playPreview(sessionState.inputNumber, sessionState.pitch);
+        } else if (event.key === "-" && sessionState.pitch > -8) {
+            sessionState.pitch--;
             inputBox.innerHTML = generateSongSelectedHTML();
-            playSound(`minus.mp3`);
-            playPreview(songNumber=inputNumber, pitch=pitch);
-        } else if (event.key === "Enter" && inputNumber.length === 4) {
+            playSoundEffect(`minus.mp3`);
+            playPreview(sessionState.inputNumber, sessionState.pitch);
+        } else if (event.key === "Enter" && sessionState.inputNumber.length === 4) {
             startConversion();
-            playSound("enter.mp3");
+            playSoundEffect("enter.mp3");
         }
     });
 

@@ -98,4 +98,25 @@ def update_history(doc_id, data):
     return "OK", 200
 
 
+def read_notify_messages():
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
 
+    docs = (
+        db.collection("notify_messages")
+        .where(filter=firestore.FieldFilter("created_at", "<=", now))
+        .where(filter=firestore.FieldFilter("expires_at", ">", now))
+        .order_by("created_at", direction=firestore.Query.DESCENDING)
+        .stream()
+    )
+
+    messages = []
+    for doc in docs:
+        data = doc.to_dict()
+        messages.append({
+            "author": data.get("author", "unknown"),
+            "content": data.get("content", ""),
+            "created_at": int(datetime.datetime.timestamp(data.get("created_at"))),
+            "expires_at": int(datetime.datetime.timestamp(data.get("expires_at")))
+        })
+
+    return messages
