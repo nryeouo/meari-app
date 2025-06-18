@@ -30,6 +30,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const scrollingDiv = document.getElementById("scrolling-history");
     const launchImg = document.getElementById("launch-image");
     const startButton = document.getElementById("start-button");
+    const bannerImg = document.getElementById("pr-banner");
+
+    function reloadBanner() {
+        bannerImg.src = `/banner?r=${Date.now()}`;
+    }
+
+    reloadBanner();
 
     let versionInfo = null;
     let discordNotification = [];
@@ -220,6 +227,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function resetToStartup() {
         inputBox.style.color = "white";
         scrollBg.style.display = "none";
+        bannerImg.style.display = "none";
         initVariables();
         getVersionInfo().then(() => {
             inputBox.innerHTML = `<p>${versionInfo.name}</p><p>Version ${versionInfo.version}</p><span class='lyrics'>${versionInfo.owner}</span>`;
@@ -230,6 +238,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 inputBox.innerHTML = initialHTML;
                 const selectSongMsg = document.getElementById("select-song");
                 selectSongMsg.style.color = `color-mix(in srgb, white 30%, var(${getRandomColour()}) 70%)`;
+                reloadBanner();
+                bannerImg.style.display = "block";
             }, 5000);
         });
     }
@@ -245,6 +255,8 @@ document.addEventListener("DOMContentLoaded", () => {
         scrollingDiv.style.display = "none";
         updateTitleBarContent(sessionState.latestEvent? [defaultEventName, sessionState.latestEvent]: [defaultTitleBarMessage]);
         setBackground("static/background/input_blank.png");
+        reloadBanner();
+        bannerImg.style.display = "block";
     }
 
     async function afterTimer() {
@@ -364,6 +376,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const totalSeconds = minutes * 60;
         let remainingSeconds = totalSeconds;
 
+        bannerImg.style.display = "none";
+
         inputBox.innerHTML = `<p class='song-name'>휴식시간</p><p class='large'>${minutes}분</p>`;
 
         fetch("/bgm_list")
@@ -415,6 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function showPitchSelection() {
         setBackground("static/background/input_blank.png");
         inputBox.innerHTML = generateSongSelectedHTML();
+        bannerImg.style.display = "none";
     }
 
     function stopPreview() {
@@ -473,7 +488,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (sessionState.currentPreviewAudio) {
             stopPreview();
         };
-    
+
+        bannerImg.style.display = "none";
+
         document.body.style.backgroundImage = "none";
         inputBox.innerHTML = "";
         inputBox.style.color = "transparent";
@@ -555,6 +572,7 @@ document.addEventListener("DOMContentLoaded", () => {
             sessionState.inputNumber += event.key;
             inputBox.innerHTML = `<p class='large'>${"____".slice(sessionState.inputNumber.length) + sessionState.inputNumber}</p>`;
             playSoundEffect(`${event.key}.mp3`);
+            bannerImg.style.display = "none";
             if (sessionState.inputNumber.length === 4) {
                 checkSong();
             }
