@@ -545,7 +545,7 @@ document.addEventListener("DOMContentLoaded", () => {
     /* キーバインド */
     document.addEventListener("keydown", (event) => {
 
-        if (event.key === "Escape") {
+        if (event.key === "Backspace") {
             if (sessionState.countdown !== null) {
                 clearInterval(sessionState.countdown);
                 sessionState.countdown = null;

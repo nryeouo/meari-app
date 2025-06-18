@@ -11,8 +11,9 @@ def get_banner():
     client = storage.Client()
     bucket = client.bucket("public_relations")
 
-    pattern = re.compile(r"\d{8}_.+/.+\.jpg$")
-    candidates = [blob for blob in bucket.list_blobs() if pattern.match(blob.name)]
+    pattern = re.compile(r"\d{8}_.+\.jpg$")
+    # candidates = [blob for blob in bucket.list_blobs() if pattern.match(blob.name)]
+    candidates = [blob for blob in bucket.list_blobs()]
 
     if not candidates:
         return jsonify({"error": "not found"}), 404
