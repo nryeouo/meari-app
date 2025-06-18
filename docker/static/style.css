@@ -179,3 +179,13 @@ body {
 .slide-from-top {
   animation: slide-from-top 1s linear forwards;
 }
+
+#pr-banner {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 728px;
+  height: 90px;
+  display: none;
+}
