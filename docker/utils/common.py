@@ -13,13 +13,19 @@ def dict_factory(cursor, row):
 
 
 def get_song_titles(songNumberList):
+    """Return a dict of songNumber to songName for the given numbers."""
+    if not songNumberList:
+        return {}
+
     conn = sqlite3.connect(os.path.join(base_dir, "songlist.sqlite"))
     cur = conn.cursor()
 
     placeholders = ",".join("?" for _ in songNumberList)
-    q = f"SELECT songNumber, songName FROM songs WHERE songNumber IN ({placeholders})"
+    query = (
+        f"SELECT songNumber, songName FROM songs WHERE songNumber IN ({placeholders})"
+    )
 
-    cur.execute(q, songNumberList)
+    cur.execute(query, songNumberList)
     rows = cur.fetchall()
     conn.close()
 
