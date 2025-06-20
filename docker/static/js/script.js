@@ -8,6 +8,13 @@ function getRandomColour() {
     return museColours[randomColourIndex];
 }
 
+function addSpacesIfShort(text) {
+  if (text.length < 11) {
+    return text.split('').join(' ');
+  }
+  return text;
+}
+
 const sessionState = {
     inputNumber: "",
     songInfo: {},
@@ -63,6 +70,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (sessionState.titleBarTimer !== null) {
             clearTimeout(sessionState.titleBarTimer);
+        }
+
+        if (discordNotification.length > 0) {
+            const discordMessages = discordNotification.map(notifications => notifications.content);
+            messages.push(discordMessages.slice(0, 2));
         }
 
         let index = 0;
@@ -496,7 +508,7 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "transparent";
         video.src = filename;
         video.style.display = "block";
-        updateTitleBarContent([highlightGreatLeaders(sessionState.songInfo.songName), defaultTitleBarMessage]);
+        updateTitleBarContent([highlightGreatLeaders(addSpacesIfShort(sessionState.songInfo.songName)), defaultTitleBarMessage]);
 
         video.play().then(() => {
             updateHistory("playStarted");
