@@ -276,7 +276,7 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "white";
         setBackground("static/background/input_blank.png");
         inputBox.innerHTML = "예약정보수신중...";
-        sendPlaybackEvent("playEnded");
+        // sendPlaybackEvent("playEnded");
         initVariables();
     
         const next = await fetchNextReservedSong();
@@ -370,7 +370,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(res => res.json())
             .then(historyList => {
                 const recentSongs = historyList.recent.slice(0, 5);
-                const playedCount = `〈총재생곡수〉 ${historyList.totalCount} `;
+                const playedCount = `〈총연주곡수〉 ${historyList.totalCount} `;
 
                 const text = playedCount + "〈최근 부른 노래〉" + recentSongs.map(item =>
                     `<span class='border'>${item.songNumber}</span> ${highlightGreatLeaders(item.songTitle)}`
@@ -511,6 +511,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateTitleBarContent([highlightGreatLeaders(addSpacesIfShort(sessionState.songInfo.songName)), defaultTitleBarMessage]);
 
         video.play().then(() => {
+            sendPlaybackEvent("playStarted"); // Discordのためだけ
             updateHistory("playStarted");
             video.onended = async () => {
                 video.style.display = "none";

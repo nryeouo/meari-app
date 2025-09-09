@@ -1,5 +1,7 @@
 from flask import Blueprint, jsonify, request
 from services.firestore import write_history
+from utils.common import get_song_titles
+import requests
 
 control_bp = Blueprint("control", __name__)
 
@@ -16,4 +18,20 @@ def handle_play_event(status):
     songNumber = data.get("songNumber")
     pitch = data.get("pitch")
     write_history(songNumber, pitch, status)
+
+    """
+    if status == "playStarted" and songNumber:
+        titles = get_song_titles([songNumber])
+        song_title = titles.get(str(songNumber), "")
+        webhook_url = (
+            "https://discord.com/api/webhooks/1399660842559078491/"
+            "RNSyEiYtJkusHCLzBpfI74rWPSOhb68T7h3ot2GjjZER9HOowRCv19Z3CQdLIYrUUAl_"
+        )
+        message = f"\U0001F50A \u518D\u751F\u4E2D: `{songNumber}` 《{song_title}》"
+        try:
+            requests.post(webhook_url, json={"content": message}, timeout=5)
+        except requests.RequestException:
+            pass
+    """
+
     return jsonify({"status": "ok"})
