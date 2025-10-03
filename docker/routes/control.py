@@ -1,7 +1,9 @@
 from flask import Blueprint, jsonify, request
-from services.firestore import write_history
+from services.firestore import (
+    delete_reservations_by_song_number,
+    write_history,
+)
 from utils.common import get_song_titles
-import requests
 
 control_bp = Blueprint("control", __name__)
 
@@ -18,6 +20,9 @@ def handle_play_event(status):
     songNumber = data.get("songNumber")
     pitch = data.get("pitch")
     write_history(songNumber, pitch, status)
+
+    if status == "playStarted" and songNumber:
+        delete_reservations_by_song_number(songNumber)
 
     """
     if status == "playStarted" and songNumber:
