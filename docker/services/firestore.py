@@ -54,6 +54,29 @@ def write_history(songNumber, pitch, status):
     })
 
 
+def delete_reservations_by_song_number(song_number):
+    """Remove reservation entries that match the provided song number."""
+    if not song_number:
+        return 0
+
+    reservations_ref = db.collection("reservations")
+    song_value = str(song_number)
+
+    deleted_count = 0
+    try:
+        matching_docs = reservations_ref.where(
+            filter=firestore.FieldFilter("songNumber", "==", song_value)
+        ).stream()
+
+        for doc in matching_docs:
+            doc.reference.delete()
+            deleted_count += 1
+    except Exception:
+        return deleted_count
+
+    return deleted_count
+
+
 def create_history(data):
     now = datetime.datetime.now(tz=datetime.timezone.utc)
     data["created_at"] = now
