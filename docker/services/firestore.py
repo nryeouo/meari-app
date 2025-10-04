@@ -55,7 +55,7 @@ def write_history(songNumber, pitch, status):
 
 
 def delete_reservations_by_song_number(song_number):
-    """Remove reservation entries that match the provided song number."""
+    """Delete only the oldest reservation entry for the given song number."""
     if not song_number:
         return 0
 
@@ -64,14 +64,21 @@ def delete_reservations_by_song_number(song_number):
 
     deleted_count = 0
     try:
-        matching_docs = reservations_ref.where(
-            filter=firestore.FieldFilter("songNumber", "==", song_value)
-        ).stream()
+        # songNumber が一致するドキュメントを created_at 昇順で1件取得
+        query = (
+            reservations_ref
+            .where(filter=firestore.FieldFilter("songNumber", "==", song_value))
+            .order_by("created_at", direction=firestore.Query.ASCENDING)
+            .limit(1)
+        )
 
-        for doc in matching_docs:
+        docs = query.stream()
+        for doc in docs:
             doc.reference.delete()
             deleted_count += 1
-    except Exception:
+
+    except Exception as e:
+        print(f"Error deleting reservation: {e}")
         return deleted_count
 
     return deleted_count
