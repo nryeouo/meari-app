@@ -569,6 +569,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!nextSongName) {
                     return;
                 }
+                console.log(nextDisplaySong);
+                console.log(sessionState.historyDocId);
                 const nextSongTitle = `다음곡: ${highlightGreatLeaders(nextSongName)}`;
                 updateTitleBarContent([nowPlayingTitle, nextSongTitle, defaultTitleBarMessage]);
             });
