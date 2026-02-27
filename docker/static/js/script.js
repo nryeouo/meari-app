@@ -176,8 +176,55 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(response => response.json())
             .catch(error => {
                 console.error("予約システム問い合わせ失敗:", error);
-                return { has_next: false };
+                return { reserved_songs: [] };
             });
+    }
+
+    function fetchSongNameByNumber(songNumber) {
+        return fetch(`/song_info/${songNumber}`)
+            .then(response => response.json())
+            .then(data => data?.songName || "")
+            .catch(error => {
+                console.error("曲名取得失敗:", error);
+                return "";
+            });
+    }
+
+
+    function getSortedReservedSongs(reservedSongs) {
+        if (!Array.isArray(reservedSongs) || reservedSongs.length === 0) {
+            return [];
+        }
+
+        return [...reservedSongs].sort((a, b) => {
+            const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+            const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+            if (aOrder !== bOrder) {
+                return aOrder - bOrder;
+            }
+
+            const aCreatedAt = Number.isFinite(Number(a?.created_at)) ? Number(a.created_at) : Number.MAX_SAFE_INTEGER;
+            const bCreatedAt = Number.isFinite(Number(b?.created_at)) ? Number(b.created_at) : Number.MAX_SAFE_INTEGER;
+            return aCreatedAt - bCreatedAt;
+        });
+    }
+
+    function getFirstReservedSong(reservedSongs) {
+        const sortedSongs = getSortedReservedSongs(reservedSongs);
+        return sortedSongs[0] || null;
+    }
+
+    function getNextDisplayReservedSong(reservedSongs, historyDocId) {
+        const sortedSongs = getSortedReservedSongs(reservedSongs);
+        if (sortedSongs.length === 0) {
+            return null;
+        }
+
+        if (historyDocId && sortedSongs[0]?.id === historyDocId) {
+            return sortedSongs[1] || null;
+        }
+
+        return sortedSongs[0];
     }
 
     function sendPlaybackEvent(eventType) {
@@ -280,8 +327,9 @@ document.addEventListener("DOMContentLoaded", () => {
         initVariables();
     
         const next = await fetchNextReservedSong();
-        if (next.has_next && next.song && next.song.songNumber) {
-            sessionState.inputNumber = next.song.songNumber;
+        const firstReservedSong = getFirstReservedSong(next.reserved_songs);
+        if (firstReservedSong && firstReservedSong.songNumber) {
+            sessionState.inputNumber = firstReservedSong.songNumber;
             checkSong();
         } else {
             resetToSelection();
@@ -508,7 +556,23 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "transparent";
         video.src = filename;
         video.style.display = "block";
-        updateTitleBarContent([highlightGreatLeaders(addSpacesIfShort(sessionState.songInfo.songName)), defaultTitleBarMessage]);
+        const nowPlayingTitle = highlightGreatLeaders(addSpacesIfShort(sessionState.songInfo.songName));
+        updateTitleBarContent([nowPlayingTitle, defaultTitleBarMessage]);
+
+        fetchNextReservedSong().then(next => {
+            const nextDisplaySong = getNextDisplayReservedSong(next.reserved_songs, sessionState.historyDocId);
+            if (!nextDisplaySong || !nextDisplaySong.songNumber) {
+                return;
+            }
+
+            fetchSongNameByNumber(nextDisplaySong.songNumber).then(nextSongName => {
+                if (!nextSongName) {
+                    return;
+                }
+                const nextSongTitle = `다음곡: ${highlightGreatLeaders(nextSongName)}`;
+                updateTitleBarContent([nowPlayingTitle, nextSongTitle, defaultTitleBarMessage]);
+            });
+        });
 
         video.play().then(() => {
             sendPlaybackEvent("playStarted"); // Discordのためだけ
@@ -523,8 +587,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 initVariables();
     
                 const next = await fetchNextReservedSong();
-                if (next.has_next && next.song && next.song.songNumber) {
-                    sessionState.inputNumber = next.song.songNumber;
+                const firstReservedSong = getFirstReservedSong(next.reserved_songs);
+                if (firstReservedSong && firstReservedSong.songNumber) {
+                    sessionState.inputNumber = firstReservedSong.songNumber;
                     checkSong();
                 } else {
                     resetToSelection();
@@ -607,4 +672,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
     console.log("《발사준비 끝!》");
 });
-
