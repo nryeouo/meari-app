@@ -93,6 +93,8 @@ def next_reserved_song():
         "done",
     }
 
+    reserved_songs = []
+
     for doc in documents:
         data = doc.to_dict() or {}
         status = data.get("status")
@@ -135,9 +137,9 @@ def next_reserved_song():
             if timestamp_value is not None:
                 song["created_at"] = timestamp_value
 
-        return jsonify({"has_next": True, "song": song})
+        reserved_songs.append(song)
 
-    return jsonify({"has_next": False})
+    return jsonify({"reserved_songs": reserved_songs})
 
 
 @app.route("/song_info/<songNumber>", methods=["GET"])

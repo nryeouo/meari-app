@@ -176,7 +176,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(response => response.json())
             .catch(error => {
                 console.error("予約システム問い合わせ失敗:", error);
-                return { has_next: false };
+                return { reserved_songs: [] };
             });
     }
 
@@ -188,6 +188,27 @@ document.addEventListener("DOMContentLoaded", () => {
                 console.error("曲名取得失敗:", error);
                 return "";
             });
+    }
+
+
+    function getFirstReservedSong(reservedSongs) {
+        if (!Array.isArray(reservedSongs) || reservedSongs.length === 0) {
+            return null;
+        }
+
+        const sortedSongs = [...reservedSongs].sort((a, b) => {
+            const aOrder = Number.isFinite(Number(a?.order)) ? Number(a.order) : Number.MAX_SAFE_INTEGER;
+            const bOrder = Number.isFinite(Number(b?.order)) ? Number(b.order) : Number.MAX_SAFE_INTEGER;
+            if (aOrder !== bOrder) {
+                return aOrder - bOrder;
+            }
+
+            const aCreatedAt = Number.isFinite(Number(a?.created_at)) ? Number(a.created_at) : Number.MAX_SAFE_INTEGER;
+            const bCreatedAt = Number.isFinite(Number(b?.created_at)) ? Number(b.created_at) : Number.MAX_SAFE_INTEGER;
+            return aCreatedAt - bCreatedAt;
+        });
+
+        return sortedSongs[0] || null;
     }
 
     function sendPlaybackEvent(eventType) {
@@ -290,8 +311,9 @@ document.addEventListener("DOMContentLoaded", () => {
         initVariables();
     
         const next = await fetchNextReservedSong();
-        if (next.has_next && next.song && next.song.songNumber) {
-            sessionState.inputNumber = next.song.songNumber;
+        const firstReservedSong = getFirstReservedSong(next.reserved_songs);
+        if (firstReservedSong && firstReservedSong.songNumber) {
+            sessionState.inputNumber = firstReservedSong.songNumber;
             checkSong();
         } else {
             resetToSelection();
@@ -522,11 +544,12 @@ document.addEventListener("DOMContentLoaded", () => {
         updateTitleBarContent([nowPlayingTitle, defaultTitleBarMessage]);
 
         fetchNextReservedSong().then(next => {
-            if (!next.has_next || !next.song || !next.song.songNumber) {
+            const firstReservedSong = getFirstReservedSong(next.reserved_songs);
+            if (!firstReservedSong || !firstReservedSong.songNumber) {
                 return;
             }
 
-            fetchSongNameByNumber(next.song.songNumber).then(nextSongName => {
+            fetchSongNameByNumber(firstReservedSong.songNumber).then(nextSongName => {
                 if (!nextSongName) {
                     return;
                 }
@@ -548,8 +571,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 initVariables();
     
                 const next = await fetchNextReservedSong();
-                if (next.has_next && next.song && next.song.songNumber) {
-                    sessionState.inputNumber = next.song.songNumber;
+                const firstReservedSong = getFirstReservedSong(next.reserved_songs);
+                if (firstReservedSong && firstReservedSong.songNumber) {
+                    sessionState.inputNumber = firstReservedSong.songNumber;
                     checkSong();
                 } else {
                     resetToSelection();
