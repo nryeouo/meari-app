@@ -190,6 +190,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+<<<<<<< codex/display-next-song-title-during-performance-v7dy3x
 
     function getFirstReservedSong(reservedSongs) {
         if (!Array.isArray(reservedSongs) || reservedSongs.length === 0) {
@@ -211,6 +212,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return sortedSongs[0] || null;
     }
 
+=======
+>>>>>>> develop
     function sendPlaybackEvent(eventType) {
         fetch(`/control/${eventType}`, {
             method: 'POST',
@@ -544,12 +547,20 @@ document.addEventListener("DOMContentLoaded", () => {
         updateTitleBarContent([nowPlayingTitle, defaultTitleBarMessage]);
 
         fetchNextReservedSong().then(next => {
+<<<<<<< codex/display-next-song-title-during-performance-v7dy3x
             const firstReservedSong = getFirstReservedSong(next.reserved_songs);
             if (!firstReservedSong || !firstReservedSong.songNumber) {
                 return;
             }
 
             fetchSongNameByNumber(firstReservedSong.songNumber).then(nextSongName => {
+=======
+            if (!next.has_next || !next.song || !next.song.songNumber) {
+                return;
+            }
+
+            fetchSongNameByNumber(next.song.songNumber).then(nextSongName => {
+>>>>>>> develop
                 if (!nextSongName) {
                     return;
                 }
