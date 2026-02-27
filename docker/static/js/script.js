@@ -180,6 +180,16 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    function fetchSongNameByNumber(songNumber) {
+        return fetch(`/song_info/${songNumber}`)
+            .then(response => response.json())
+            .then(data => data?.songName || "")
+            .catch(error => {
+                console.error("曲名取得失敗:", error);
+                return "";
+            });
+    }
+
     function sendPlaybackEvent(eventType) {
         fetch(`/control/${eventType}`, {
             method: 'POST',
@@ -508,7 +518,22 @@ document.addEventListener("DOMContentLoaded", () => {
         inputBox.style.color = "transparent";
         video.src = filename;
         video.style.display = "block";
-        updateTitleBarContent([highlightGreatLeaders(addSpacesIfShort(sessionState.songInfo.songName)), defaultTitleBarMessage]);
+        const nowPlayingTitle = highlightGreatLeaders(addSpacesIfShort(sessionState.songInfo.songName));
+        updateTitleBarContent([nowPlayingTitle, defaultTitleBarMessage]);
+
+        fetchNextReservedSong().then(next => {
+            if (!next.has_next || !next.song || !next.song.songNumber) {
+                return;
+            }
+
+            fetchSongNameByNumber(next.song.songNumber).then(nextSongName => {
+                if (!nextSongName) {
+                    return;
+                }
+                const nextSongTitle = `다음곡: ${highlightGreatLeaders(nextSongName)}`;
+                updateTitleBarContent([nowPlayingTitle, nextSongTitle, defaultTitleBarMessage]);
+            });
+        });
 
         video.play().then(() => {
             sendPlaybackEvent("playStarted"); // Discordのためだけ
@@ -607,4 +632,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
     console.log("《발사준비 끝!》");
 });
-
