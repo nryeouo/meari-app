@@ -214,13 +214,13 @@ document.addEventListener("DOMContentLoaded", () => {
         return sortedSongs[0] || null;
     }
 
-    function getNextDisplayReservedSong(reservedSongs, historyDocId) {
+    function getNextDisplayReservedSong(reservedSongs, songNumber) {
         const sortedSongs = getSortedReservedSongs(reservedSongs);
         if (sortedSongs.length === 0) {
             return null;
         }
 
-        if (historyDocId && sortedSongs[0]?.id === historyDocId) {
+        if (songNumber && sortedSongs[0]?.songNumber === songNumber) {
             return sortedSongs[1] || null;
         }
 
@@ -560,7 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
         updateTitleBarContent([nowPlayingTitle, defaultTitleBarMessage]);
 
         fetchNextReservedSong().then(next => {
-            const nextDisplaySong = getNextDisplayReservedSong(next.reserved_songs, sessionState.historyDocId);
+            const nextDisplaySong = getNextDisplayReservedSong(next.reserved_songs, sessionState.inputNumber);
             if (!nextDisplaySong || !nextDisplaySong.songNumber) {
                 return;
             }
