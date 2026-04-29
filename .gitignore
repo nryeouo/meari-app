@@ -3,6 +3,9 @@
 /docker/__pycache__
 /docker/Dockerfile
 /docker/docker-compose.yml
+/docker/static/background
+/docker/static/font
+/docker/static/sounds
 /cloudbuild.yaml
 /env
 /docker/keys
