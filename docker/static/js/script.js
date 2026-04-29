@@ -25,7 +25,8 @@ const sessionState = {
     currentPreviewAudio: null,
     countdown: null,
     latestEvent : null,
-    titleBarTimer: null
+    titleBarTimer: null,
+    titleBarCancel: null
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -73,8 +74,11 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (discordNotification.length > 0) {
-            const discordMessages = discordNotification.map(notifications => notifications.content);
-            messages.push(discordMessages.slice(0, 2));
+            const discordMessages = discordNotification
+                .map(notifications => notifications.content)
+                .filter(Boolean)
+                .slice(0, 2);
+            messages.push(...discordMessages);
         }
 
         let index = 0;
@@ -159,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
             .then(data => {
                 if (Array.isArray(data)) {
                     discordNotification = data;
-                    console.log("通知メッセージ更新:", discordNotification);
+                    // 通知一覧の更新結果は UI に反映されるため、通常時のログ出力は不要
                 }
             })
             .catch(error => {
@@ -357,8 +361,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let lyricist = songInfo.lyricist || "";
         let composer = songInfo.composer || "";
         let lyricStart = highlightGreatLeaders(songInfo.lyricStart || "");
-        console.log(songInfo);
-
         sessionState.duration = formatSeconds(songInfo.duration);
     
         if (lyricist && composer) {
@@ -569,8 +571,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (!nextSongName) {
                     return;
                 }
-                console.log(nextDisplaySong);
-                console.log(sessionState.historyDocId);
                 const nextSongTitle = `다음곡: ${highlightGreatLeaders(nextSongName)}`;
                 updateTitleBarContent([nowPlayingTitle, nextSongTitle, defaultTitleBarMessage]);
             });
@@ -672,5 +672,4 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    console.log("《발사준비 끝!》");
 });
