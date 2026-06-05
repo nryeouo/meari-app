@@ -1,13 +1,100 @@
 import datetime
 import firebase_admin
 from firebase_admin import credentials, firestore
-from utils.common import get_song_titles
+from services.sqlite import get_song_titles
 
 if not firebase_admin._apps:
-    cred = credentials.ApplicationDefault()
-    firebase_admin.initialize_app(cred)
+    try:
+        firebase_admin.initialize_app(credentials.ApplicationDefault())
+    except Exception:
+        firebase_admin.initialize_app()
 
 db = firestore.client()
+
+
+def _timestamp_seconds(value):
+    if value is None:
+        return None
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=datetime.timezone.utc)
+        return int(value.timestamp())
+    if hasattr(value, "seconds") and hasattr(value, "nanoseconds"):
+        return int(value.seconds + value.nanoseconds / 1_000_000_000)
+    return None
+
+
+def _normalized_status(value):
+    if value is None:
+        return ""
+    return str(value).replace("_", "-").replace(" ", "-").lower()
+
+
+def read_current_event():
+    now = datetime.datetime.now(tz=datetime.timezone.utc)
+    docs = (
+        db.collection("karaoke_events")
+        .order_by("startTime", direction=firestore.Query.DESCENDING)
+        .limit(5)
+        .stream()
+    )
+
+    for doc in docs:
+        event = doc.to_dict()
+        start = event.get("startTime")
+        end = event.get("endTime")
+        if start and end and start <= now < end:
+            return event
+
+    return None
+
+
+def read_next_reserved_songs():
+    reservations_ref = db.collection("reservations")
+    skip_statuses = {
+        "canceled",
+        "cancelled",
+        "finished",
+        "in-progress",
+        "playing",
+        "done",
+    }
+
+    try:
+        docs = list(
+            reservations_ref.order_by("order").order_by("created_at").limit(20).stream()
+        )
+    except Exception:
+        try:
+            docs = list(reservations_ref.order_by("created_at").limit(20).stream())
+        except Exception:
+            docs = []
+
+    reserved_songs = []
+    for doc in docs:
+        data = doc.to_dict() or {}
+        if _normalized_status(data.get("status")) in skip_statuses:
+            continue
+
+        song = {"id": doc.id}
+        for field in ("songNumber", "status", "source"):
+            if field in data:
+                song[field] = data[field]
+
+        order_value = data.get("order")
+        if order_value is not None:
+            try:
+                song["order"] = order_value if isinstance(order_value, (int, float)) else int(order_value)
+            except (TypeError, ValueError):
+                continue
+
+        created_at = _timestamp_seconds(data.get("created_at"))
+        if created_at is not None:
+            song["created_at"] = created_at
+
+        reserved_songs.append(song)
+
+    return {"reserved_songs": reserved_songs}
 
 
 def read_history():
@@ -38,7 +125,7 @@ def read_history():
             {
                 "songNumber": str(row["songNumber"]),
                 "songTitle": title_dict.get(str(row["songNumber"]), "---"),
-                "updated_at": int(datetime.datetime.timestamp(row["updated_at"]))
+                "updated_at": _timestamp_seconds(row["updated_at"])
             }
             for row in rows
         ]

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify, redirect, send_file
-from services.cloudstorage import get_mp3_blob, download_blob_to_tempfile
+from services.cloudstorage import download_blob_to_tempfile, get_mp3_blob, signed_url
 from services.ffmpeg import apply_pitch_to_audio
 import tempfile
 
@@ -14,12 +14,7 @@ def preview_song(songNumber):
         return jsonify({"error": "preview mp3 not found"}), 404
 
     if pitch == 0:
-        url = blob.generate_signed_url(
-            version="v4",
-            expiration=900,  # 15分
-            method="GET"
-        )
-        return redirect(url)
+        return redirect(signed_url(blob))
 
     with tempfile.NamedTemporaryFile(suffix=".mp3") as temp_input, \
          tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as temp_output:

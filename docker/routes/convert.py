@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from services.cloudstorage import get_video_blob, upload_temp_video_blob
+from services.cloudstorage import get_video_blob, signed_url, upload_temp_video_blob
 from services.ffmpeg import apply_pitch_to_video
 import tempfile
 
@@ -16,12 +16,7 @@ def convert_video():
         return jsonify({"error": "video not found"}), 404
 
     if pitch == 0:
-        url = input_blob.generate_signed_url(
-            version="v4",
-            expiration=900,
-            method="GET"
-        )
-        return jsonify({"processed_file": url})
+        return jsonify({"processed_file": signed_url(input_blob)})
 
     with tempfile.NamedTemporaryFile(suffix=".mp4") as temp_input, \
          tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_output:
@@ -34,9 +29,4 @@ def convert_video():
 
         output_blob = upload_temp_video_blob(song_number, pitch, temp_output.name)
 
-        url = output_blob.generate_signed_url(
-            version="v4",
-            expiration=900,
-            method="GET"
-        )
-        return jsonify({"processed_file": url})
+        return jsonify({"processed_file": signed_url(output_blob)})

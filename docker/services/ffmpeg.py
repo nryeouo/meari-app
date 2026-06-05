@@ -1,32 +1,32 @@
 import subprocess
-import math
+
+
+def run_ffmpeg(cmd):
+    try:
+        subprocess.run(cmd, check=True)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
+
+def pitch_factor(pitch):
+    return 2 ** (pitch / 12)
+
 
 def apply_pitch_to_audio(input_path, output_path, pitch):
-    try:
-        factor = 2 ** (pitch / 12)
-        cmd = [
-            "ffmpeg", "-y", "-loglevel", "error",
-            "-i", input_path,
-            "-af", f"rubberband=pitch={factor:.5f}",
-            "-acodec", "libmp3lame",
-            output_path
-        ]
-        subprocess.run(cmd, check=True)
-        return True
-    except subprocess.CalledProcessError:
-        return False
+    return run_ffmpeg([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", input_path,
+        "-af", f"rubberband=pitch={pitch_factor(pitch):.5f}",
+        "-acodec", "libmp3lame",
+        output_path,
+    ])
 
 def apply_pitch_to_video(input_path, output_path, pitch):
-    try:
-        factor = 2 ** (pitch / 12)
-        cmd = [
-            "ffmpeg", "-y", "-loglevel", "error",
-            "-i", input_path,
-            "-af", f"rubberband=pitch={factor:.5f}",
-            "-c:v", "copy",  # 映像は変換しない
-            output_path
-        ]
-        subprocess.run(cmd, check=True)
-        return True
-    except subprocess.CalledProcessError:
-        return False
+    return run_ffmpeg([
+        "ffmpeg", "-y", "-loglevel", "error",
+        "-i", input_path,
+        "-af", f"rubberband=pitch={pitch_factor(pitch):.5f}",
+        "-c:v", "copy",
+        output_path,
+    ])
