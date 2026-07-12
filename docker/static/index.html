@@ -19,6 +19,25 @@
     <div id="scrolling-history" class="scrolling-text"></div>
     <video id="video" style="display: none;" controls></video>
     <div id="video-title"></div>
+    <nav id="side-controls" aria-label="화면 조작">
+        <button id="side-controls-toggle" class="side-control side-control-toggle" type="button" aria-expanded="true">접기</button>
+        <div id="side-controls-buttons">
+            <button class="side-control side-control-number" type="button" data-key="1">1</button>
+            <button class="side-control side-control-number" type="button" data-key="2">2</button>
+            <button class="side-control side-control-number" type="button" data-key="3">3</button>
+            <button class="side-control side-control-number" type="button" data-key="4">4</button>
+            <button class="side-control side-control-number" type="button" data-key="5">5</button>
+            <button class="side-control side-control-number" type="button" data-key="6">6</button>
+            <button class="side-control side-control-number" type="button" data-key="7">7</button>
+            <button class="side-control side-control-number" type="button" data-key="8">8</button>
+            <button class="side-control side-control-number" type="button" data-key="9">9</button>
+            <button class="side-control side-control-number" type="button" data-key="0">0</button>
+            <button class="side-control side-control-pitch" type="button" data-key="+">♯</button>
+            <button class="side-control side-control-pitch" type="button" data-key="-">♭</button>
+            <button class="side-control side-control-play" type="button" data-key="Enter">재생</button>
+            <button class="side-control side-control-stop" type="button" data-key="Backspace">정지</button>
+        </div>
+    </nav>
     <script type="module" src="static/js/script.js"></script>
 </body>
 </html>

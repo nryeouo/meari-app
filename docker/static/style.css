@@ -122,6 +122,61 @@ body {
   object-fit: contain;
 }
 
+#side-controls {
+  position: fixed;
+  top: 50%;
+  right: 1rem;
+  z-index: 1000;
+  transform: translateY(-50%);
+}
+
+#side-controls-buttons {
+  display: flex;
+  flex-direction: column;
+}
+
+#side-controls-buttons[hidden] {
+  display: none;
+}
+
+.side-control {
+  width: 4.5rem;
+  min-height: 3rem;
+  margin: 0.1rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 0.3rem;
+  color: white;
+  font-size: 1.3rem;
+  font-weight: bold;
+  opacity: 0.5;
+  cursor: pointer;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.side-control-number {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.side-control-pitch,
+.side-control-toggle {
+  background-color: rgba(0, 0, 0, 0.65);
+}
+
+.side-control-play {
+  background-color: var(--ll-hanayo);
+}
+
+.side-control-stop {
+  background-color: var(--ll-maki);
+}
+
+.side-control:hover,
+.side-control:focus-visible {
+  outline: 2px solid white;
+  outline-offset: -2px;
+}
+
 #start-button {
   font-size: 24px;
   margin: 1vmin 0;

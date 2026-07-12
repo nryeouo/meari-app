@@ -39,6 +39,25 @@ document.addEventListener("DOMContentLoaded", () => {
     const launchImg = document.getElementById("launch-image");
     const startButton = document.getElementById("start-button");
     const bannerImg = document.getElementById("pr-banner");
+    const sideControlsToggle = document.getElementById("side-controls-toggle");
+    const sideControlsButtons = document.getElementById("side-controls-buttons");
+
+    sideControlsToggle.addEventListener("click", () => {
+        const isCollapsed = sideControlsButtons.hidden;
+        sideControlsButtons.hidden = !isCollapsed;
+        sideControlsToggle.textContent = isCollapsed ? "접기" : "열기";
+        sideControlsToggle.setAttribute("aria-expanded", String(isCollapsed));
+    });
+
+    sideControlsButtons.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-key]");
+        if (!button) return;
+
+        document.dispatchEvent(new KeyboardEvent("keydown", {
+            key: button.dataset.key,
+            bubbles: true
+        }));
+    });
 
     function reloadBanner() {
         bannerImg.src = `/banner?r=${Date.now()}`;
